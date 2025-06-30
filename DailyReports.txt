@@ -1,0 +1,8 @@
+----------------------30.06.2025 Monday-----------------------------------------------------------------
+The project has started.
+The technologies to be used in the project have been installed and synchronized.
+The database has been installed and connected.
+The ER diagram has been drawn
+The Core App has been opened => The 'core' app holds the project's foundational models, like Company and Employee. It's a starting point for central logic before we create more specialized apps for things like job postings or candidates.
+The GitHub repository has been opened and the first push has been made
+A readme file was written for the project.
