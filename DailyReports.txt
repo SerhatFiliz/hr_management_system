@@ -6,3 +6,11 @@ The ER diagram has been drawn
 The Core App has been opened => The 'core' app holds the project's foundational models, like Company and Employee. It's a starting point for central logic before we create more specialized apps for things like job postings or candidates.
 The GitHub repository has been opened and the first push has been made
 A readme file was written for the project.
+
+----------------------01.07.2025----------------------------------------------------------------------
+Two neew application added: accounts and portal.("accounts" for user transactions and "portal" for portal transactions)
+I've refactored my Django database connection by moving sensitive credentials from settings.py to a secure .env file, ensuring best practices for security and environment-specific configurations.
+.gitignore and .env files created.
+settings.py file configured. dotenv installed.
+Data models were created using Django's ORM. ****
+Created superuser and saved Company, Employee, JobPosting, Candidate and Application Models to admin panel.
