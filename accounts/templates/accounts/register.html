@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register HR Employee</title>
+    <style>
+        /* Basit CSS stilleri, projenin görünümünü güzelleştirmek için ileride CSS dosyası ekleyebiliriz. */
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; }
+        .container { background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 500px; margin: auto; }
+        h2 { text-align: center; color: #333; }
+        form div { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
+        input[type="text"], input[type="password"], input[type="email"] {
+            width: calc(100% - 22px); /* Padding'i hesaba kat */
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box; /* Padding ve border'ı genişliğe dahil et */
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover { background-color: #0056b3; }
+        .errorlist { color: red; font-size: 0.9em; list-style-type: none; padding: 0; margin-top: 5px; }
+        .success { color: green; text-align: center; font-weight: bold; }
+        .error { color: red; text-align: center; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Register as HR Employee</h2>
+
+        {# Shows messages sent with django messages framework #}
+        {% if messages %}
+            <ul class="messages">
+                {% for message in messages %}
+                    <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %} {# CSRF koruması için zorunlu satır #}
+
+            {# Renders form fields one by one #}
+            {# Not fields like user, company, created_at, but fields in the form (username, password, company_name) #}
+            {% for field in form %}
+                <div>
+                    {{ field.label_tag }} {# Field label (ex: Username, Password, Company Name) #}
+                    {{ field }} {# Input box of the field #}
+                    {% if field.help_text %}
+                        <small style="color: #666;">{{ field.help_text }}</small> {# Help text #}
+                    {% endif %}
+                    {% for error in field.errors %}
+                        <p class="errorlist">{{ error }}</p> {# Field specific error messages #}
+                    {% endfor %}
+                </div>
+            {% endfor %}
+
+            {# General errors of the form (for example, if the passwords do not match) #}
+            {% if form.non_field_errors %}
+                <div class="error">{{ form.non_field_errors }}</div>
+            {% endif %}
+
+            <button type="submit">Register</button>
+        </form>
+    </div>
+</body>
+</html>

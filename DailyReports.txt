@@ -12,5 +12,16 @@ Two neew application added: accounts and portal.("accounts" for user transaction
 I've refactored my Django database connection by moving sensitive credentials from settings.py to a secure .env file, ensuring best practices for security and environment-specific configurations.
 .gitignore and .env files created.
 settings.py file configured. dotenv installed.
-Data models were created using Django's ORM. ****
-Created superuser and saved Company, Employee, JobPosting, Candidate and Application Models to admin panel.
+Data models were created using Django's ORM (models.py). ****
+Created superuser and saved Company, Employee, JobPosting, Candidate and Application Models to admin panel (admin.py).
+
+----------------------02.07.2025----------------------------------------------------------------------
+The core application folder was deleted to simplify the project structure.
+Necessary MEDIA_ROOT and MEDIA_URL settings for Django's media file management (like resumes) were configured in settings.py and the main urls.py files.
+accounts/urls.py and portal/urls.py files were created to house the URL structures for each application, and these were included in the main urls.py.
+UserRegistrationForm was created in accounts/forms.py for HR employee registration. This form extends Django's UserCreationForm and includes the company_name field.
+The clean_company_name and save methods of UserRegistrationForm were updated to meet the project requirement (create company if it doesn't exist, link to existing if it does) and ensure data integrity with atomic transactions.
+The register_hr_employee view function was written in accounts/views.py to handle the registration process. This view processes the form, saves the user, automatically logs them in, and redirects them to the Admin panel.(temporarily)
+The accounts/templates/accounts/register.html HTML template was created for the registration form, preparing its visual interface.
+The main URL (/) was updated in hr_management_system/urls.py to redirect directly to the registration page (/accounts/register/).
+The registration functionality was successfully tested; a new HR employee record was created, automatic login was performed, and the redirection to the Admin panel (temporarily) occurred as expected.
