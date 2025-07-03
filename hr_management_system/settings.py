@@ -133,3 +133,9 @@ MEDIA_URL = '/media/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Default URL to redirect to after a successful login.
+LOGIN_REDIRECT_URL = '/portal/dashboard/'
+
+# URL to redirect to for login when a user tries to access a protected page.
+LOGIN_URL = '/accounts/login/'

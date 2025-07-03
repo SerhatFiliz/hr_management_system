@@ -20,7 +20,7 @@ def register_hr_employee(request):
             # (6) After successful registration, the user is directed to the dashboard page.
             # Since there is no dashboard page yet, it is directed to the admin panel for now.
             # This will be changed when the dashboard URL is created in the future
-            return redirect('admin:index') # Redirect to admin panel home page
+            return redirect('dashboard') # Redirect to admin panel home page
 
         else:
             # (7) If the form is not valid (if there is a validation error)

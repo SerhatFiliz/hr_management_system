@@ -1,4 +1,4 @@
-----------------------30.06.2025 Monday-----------------------------------------------------------------
+----------------------30.06.2025-----------------------------------------------------------------
 The project has started.
 The technologies to be used in the project have been installed and synchronized.
 The database has been installed and connected.
@@ -25,3 +25,13 @@ The register_hr_employee view function was written in accounts/views.py to handl
 The accounts/templates/accounts/register.html HTML template was created for the registration form, preparing its visual interface.
 The main URL (/) was updated in hr_management_system/urls.py to redirect directly to the registration page (/accounts/register/).
 The registration functionality was successfully tested; a new HR employee record was created, automatic login was performed, and the redirection to the Admin panel (temporarily) occurred as expected.
+
+----------------------03.07.2025----------------------------------------------------------------------
+Login/Logout Functionality Implemented: Django's built-in LoginView and LogoutView were configured in accounts/urls.py to handle user authentication securely.
+Login Page Created: A user-facing login template (accounts/login.html) was created to allow users to enter their credentials.
+Protected Dashboard View Created: A class-based DashboardView was developed in portal/views.py, using LoginRequiredMixin to ensure that only authenticated users can access it.
+Global Redirects Configured: LOGIN_REDIRECT_URL and LOGIN_URL were set in settings.py to manage the application's redirect logic after login and for protected page access.
+Dashboard UI Developed: A portal/dashboard.html template was created to serve as the main landing page for users after they log in, displaying a welcome message and company information.
+Structural Bug Fixed (AttributeError): Resolved a critical AttributeError that occurred because the DashboardView was incorrectly trying to access user.userprofile. The code was refactored to use the correct relationship (user.employee.company) as defined in the ER diagram.
+Admin Configuration Corrected (AlreadyRegistered): Resolved a django.contrib.admin.exceptions.AlreadyRegistered error by refactoring accounts/admin.py and portal/admin.py to ensure each model is registered only once in its appropriate application.
+End-to-End Authentication Flow Tested: The complete user journey (visiting a protected page -> redirect to login -> successful login -> redirect to dashboard -> logout) was successfully tested and confirmed to be fully functional.

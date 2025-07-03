@@ -1,8 +1,6 @@
 from django.urls import path
-# from . import views
-
-app_name = 'portal' # Bu, URL isimlendirmesinde çakışmaları önlemek için kullanılır.
+from .views import DashboardView # Import the DashboardView from views.py
 
 urlpatterns = [
-    
+    path('dashboard/', DashboardView.as_view(), name='dashboard'),
 ]
