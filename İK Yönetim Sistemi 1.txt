@@ -1,0 +1,103 @@
+İK Yönetim Sistemi
+1. Proje Genel Bakış
+Bu proje, İK çalışanlarının bağlı oldukları şirket adına iş ilanı oluşturmasını, aday profillerini kaydetmesini ve iş ilanı açıklamalarına göre otomatik başlık üretmesini sağlayan bir web uygulamasıdır. Sistem, kullanıcı dostu bir arayüzle, güvenli kimlik doğrulama ve yetkilendirme mekanizmalarına sahip olmalıdır. Aşağıdaki temel özellikler istenmektedir:
+
+Kullanıcı Yönetimi: İK çalışanları için kayıt (register) ve giriş (login) işlevselliği.
+Şirket Yönetimi: İK çalışanlarının bağlı olduğu şirketlerin tanımlanması.
+İş İlanı Yönetimi: Şirket adına iş ilanı oluşturma, düzenleme ve silme.
+Aday Profili Yönetimi: Şirket adına aday profillerinin (isim, soyisim, e-posta, özgeçmiş) kaydedilmesi.
+Yapay Zeka Entegrasyonu: İş ilanı açıklamasına göre başlık üretmek için ücretsiz bir yapay zeka API’sine istek atma (opsiyonel).
+
+2. Teknik Gereksinimler
+Backend: Python 3.x ve Django 5.x (tercihen en güncel sürüm).
+Veritabanı: İsteğe bağlı
+Frontend (Opsiyonel): İsteğe bağlı
+Yapay Zeka API (Opsiyonel): Ücretsiz bir API (örneğin, groq ya da Hugging Face’in Transformer modelleri) kullanılarak iş ilanı başlığı üretimi.
+
+3. Fonksiyonel Gereksinimler
+3.1. Kullanıcı Yönetimi
+Kayıt (Register):
+İK çalışanı, kullanıcı adı, şifre ve şirket adı ile kayıt olabilmeli.
+Kayıt sırasında şirket, veritabanında yoksa oluşturulmalı; varsa mevcut şirketle ilişkilendirilmeli.
+Kayıt sonrası otomatik olarak giriş yapılmalı ve kullanıcı dashboard’a yönlendirilmeli.
+Giriş (Login):
+Kullanıcı adı ve şifre ile giriş yapılabilmeli.
+Hatalı giriş denemelerinde kullanıcıya uygun hata mesajı gösterilmeli.
+Yetkilendirme:
+Kullanıcılar yalnızca kendi şirketlerine ait iş ilanlarını ve aday profillerini görebilmeli/yönetebilmeli.
+3.2. Şirket Yönetimi
+Her İK çalışanı bir şirkete bağlı olmalı.
+Şirket bilgileri (adı, opsiyonel açıklama) kaydedilmeli.
+Bir şirket, birden fazla İK çalışanı ve iş ilanıyla ilişkilendirilebilir.
+3.3. İş İlanı Yönetimi
+Oluşturma:
+İK çalışanı, şirketi adına iş ilanı oluşturabilmeli.
+İş ilanı için gerekli alanlar: başlık, açıklama, aktif/pasif durumu.
+Açıklama girildikten sonra bir "Başlığı Otomatik Oluştur" butonu ile yapay zeka API’sine istek atılarak başlık üretilebilmeli (opsiyonel).
+Listeleme: Kullanıcının şirketine ait tüm iş ilanları dashboard’da listelenmeli.
+Düzenleme/Silme: İK çalışanı, kendi şirketine ait iş ilanlarını düzenleyebilmeli veya silebilmeli.
+3.4. Aday Profili Yönetimi
+Oluşturma:
+İK çalışanı, şirketi adına aday profili kaydedebilmeli.
+Gerekli alanlar: ad, soyad, e-posta, özgeçmiş (PDF)
+Listeleme: Kullanıcının şirketine ait tüm aday profilleri dashboard’da listelenmeli.
+Dosya Yönetimi: Özgeçmiş dosyaları yalnızca PDF formatında kabul edilmeli ve sunucuda güvenli bir şekilde saklanmalı.
+3.5. Yapay Zeka Entegrasyonu (Opsiyonel)
+İş ilanı oluşturma formunda, açıklama girildikten sonra bir butonla yapay zeka API’sine istek atılmalı.
+Önerilen API: Hugging Face’in ücretsiz Transformer modelleri (örneğin, facebook/bart-large-cnn).
+API, açıklama metnini analiz ederek 50 karakterlik bir iş ilanı başlığı üretmeli.
+Hata durumunda varsayılan bir başlık (örneğin, "Yeni İş İlanı") kullanılmalı.
+
+4. Veri Modelleri
+Aşağıdaki veri modelleri, sistemin temel yapısını oluşturur. Django’nun ORM’si kullanılarak tanımlanmalıdır.
+
+Company (Şirket):
+name: 
+description:
+created_at:
+updated_at:
+
+Employee (İK Çalışanı):
+user: 
+company: 
+created_at: 
+
+JobPosting (İş İlanı):
+company: 
+title: 
+description: 
+created_by: 
+created_at: 
+updated_at: 
+is_active: 
+
+Candidate (Aday):
+company: 
+first_name: 
+last_name: 
+email: 
+resume: 
+created_by: 
+created_at: 
+
+5. Yapay Zeka Entegrasyonu (Opsiyonel)
+API Seçimi: Hugging Face’in ücretsiz API’si (facebook/bart-large-cnn veya benzeri) önerilir. Alternatif olarak, xAI’nin Grok API’si ücretsiz kotalar dahilinde kullanılabilir.
+İstek Yapısı:
+Açıklama metni JSON formatında API’ye gönderilmeli.
+Maksimum başlık uzunluğu 50 karakter olmalı.
+Hata durumunda varsayılan başlık kullanılmalı.
+Konfigürasyon: API URL’si ve anahtarı settings.py dosyasında tanımlanmalı.
+
+6. Teslim Beklentileri
+Kod Yapısı:
+Temiz, modüler ve iyi belgelenmiş kod (yorum satırları ve docstring’ler).
+Django’nun MVT (Model-View-Template) mimarisine uygun yapı.
+Testler:
+Temel işlevsellik için birim testleri (kayıt, giriş, iş ilanı ve aday oluşturma).
+Dökümantasyon:
+Kurulum ve çalıştırma talimatları (README.md).
+Teslim Formatı:
+Git reposu (örneğin, GitHub veya GitLab).
+Gereksinim dosyası (requirements.txt).
+Zaman Çizelgesi:
+Önerilen süre: 2-3 hafta (tam zamanlı çalışma varsayımıyla).

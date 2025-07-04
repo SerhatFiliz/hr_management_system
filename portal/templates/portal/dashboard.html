@@ -1,19 +1,30 @@
+{# templates/portal/dashboard.html #}
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mirsis Dashboard</title>
+    <title>Dashboard - HR Core</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 0; background-color: #f8f9fa; }
         .navbar { background-color: #fff; padding: 15px 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; }
         .navbar .brand { font-size: 1.5em; font-weight: bold; color: #007bff; }
         .navbar .user-info { font-weight: 500; }
         .navbar a { color: #dc3545; text-decoration: none; margin-left: 15px; font-weight: bold; }
-        .container { padding: 40px; }
-        .welcome-card { background-color: #fff; padding: 40px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center; }
-        .welcome-card h2 { margin-top: 0; color: #343a40; }
-        .welcome-card p { color: #6c757d; font-size: 1.1em; }
+        .container { padding: 40px; max-width: 960px; margin: auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .header h2 { margin: 0; color: #343a40; }
+        .btn-create { background-color: #007bff; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold; }
+        .btn-create:hover { background-color: #0056b3; }
+        .job-list { background-color: #fff; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); overflow: hidden; }
+        .job-list table { width: 100%; border-collapse: collapse; }
+        .job-list th, .job-list td { padding: 15px; text-align: left; border-bottom: 1px solid #dee2e6; }
+        .job-list th { background-color: #f8f9fa; color: #495057; font-weight: 600; }
+        .job-list .status-active { color: #28a745; font-weight: bold; }
+        .job-list .status-inactive { color: #6c757d; }
+        .job-list .actions a { color: #007bff; text-decoration: none; margin-right: 10px; }
+        .job-list .actions a.delete { color: #dc3545; }
+        .no-jobs { text-align: center; padding: 50px; color: #6c757d; }
     </style>
 </head>
 <body>
@@ -21,16 +32,54 @@
     <nav class="navbar">
         <div class="brand">HR Core</div>
         <div class="user-info">
-            Hoş geldin, <strong>{{ user.username }}</strong>
-            <a href="{% url 'logout' %}">Çıkış Yap</a>
+            Welcome, <strong>{{ user.username }}</strong>
+            <a href="{% url 'logout' %}">Logout</a>
         </div>
     </nav>
 
     <div class="container">
-        <div class="welcome-card">
-            <h2>{{ company.name }} Dashboard</h2>
-            <p>İK Yönetim Panelinize hoş geldiniz. Buradan iş ilanlarınızı ve adaylarınızı yönetebilirsiniz.</p>
-            </div>
+        <div class="header">
+            <h2>{{ company.name }} - Job Postings</h2>
+            <a href="{% url 'job-create' %}" class="btn-create">Create New Posting</a>
+        </div>
+
+        <div class="job-list">
+            {% if job_postings %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Status</th>
+                            <th>Created At</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for job in job_postings %}
+                            <tr>
+                                <td>{{ job.title }}</td>
+                                <td>
+                                    {% if job.is_active %}
+                                        <span class="status-active">Active</span>
+                                    {% else %}
+                                        <span class="status-inactive">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ job.created_at|date:"d M, Y" }}</td>
+                                <td class="actions">
+                                    <!-- NEW: Link to the update page for the specific job -->
+                                    <a href="{% url 'job-update' job.pk %}">Edit</a>
+                                    <!-- NEW: Link to the delete confirmation page -->
+                                    <a href="{% url 'job-delete' job.pk %}" class="delete">Delete</a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p class="no-jobs">No job postings found for your company. Create one to get started!</p>
+            {% endif %}
+        </div>
     </div>
 
 </body>
