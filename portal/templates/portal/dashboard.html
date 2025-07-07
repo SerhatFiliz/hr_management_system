@@ -14,17 +14,24 @@
         .container { padding: 40px; max-width: 960px; margin: auto; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
         .header h2 { margin: 0; color: #343a40; }
-        .btn-create { background-color: #007bff; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold; }
-        .btn-create:hover { background-color: #0056b3; }
-        .job-list { background-color: #fff; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); overflow: hidden; }
-        .job-list table { width: 100%; border-collapse: collapse; }
-        .job-list th, .job-list td { padding: 15px; text-align: left; border-bottom: 1px solid #dee2e6; }
-        .job-list th { background-color: #f8f9fa; color: #495057; font-weight: 600; }
-        .job-list .status-active { color: #28a745; font-weight: bold; }
-        .job-list .status-inactive { color: #6c757d; }
-        .job-list .actions a { color: #007bff; text-decoration: none; margin-right: 10px; }
-        .job-list .actions a.delete { color: #dc3545; }
-        .no-jobs { text-align: center; padding: 50px; color: #6c757d; }
+        .header-buttons { display: flex; gap: 10px; }
+        .btn { padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold; color: white; }
+        .btn-primary { background-color: #007bff; }
+        .btn-primary:hover { background-color: #0056b3; }
+        .btn-secondary { background-color: #6c757d; }
+        .btn-secondary:hover { background-color: #5a6268; }
+        .content-section { margin-bottom: 40px; }
+        .list-card { background-color: #fff; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); overflow: hidden; }
+        .list-card h3 { padding: 20px 15px 0 15px; margin: 0; }
+        .list-card table { width: 100%; border-collapse: collapse; }
+        .list-card th, .list-card td { padding: 15px; text-align: left; border-bottom: 1px solid #dee2e6; }
+        .list-card th { background-color: #f8f9fa; color: #495057; font-weight: 600; }
+        .list-card tr:last-child td { border-bottom: none; }
+        .status-active { color: #28a745; font-weight: bold; }
+        .status-inactive { color: #6c757d; }
+        .actions a { color: #007bff; text-decoration: none; margin-right: 10px; }
+        .actions a.delete { color: #dc3545; }
+        .no-items { text-align: center; padding: 50px; color: #6c757d; }
     </style>
 </head>
 <body>
@@ -39,47 +46,89 @@
 
     <div class="container">
         <div class="header">
-            <h2>{{ company.name }} - Job Postings</h2>
-            <a href="{% url 'job-create' %}" class="btn-create">Create New Posting</a>
+            <h2>{{ company.name }} - Dashboard</h2>
+            <div class="header-buttons">
+                <a href="{% url 'candidate-create' %}" class="btn btn-secondary">Add New Candidate</a>
+                <a href="{% url 'job-create' %}" class="btn btn-primary">Create New Posting</a>
+            </div>
         </div>
 
-        <div class="job-list">
-            {% if job_postings %}
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Title</th>
-                            <th>Status</th>
-                            <th>Created At</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for job in job_postings %}
+        <div class="content-section">
+            <div class="list-card">
+                <h3>Job Postings</h3>
+                {% if job_postings %}
+                    <table>
+                        <thead>
                             <tr>
-                                <td>{{ job.title }}</td>
-                                <td>
-                                    {% if job.is_active %}
-                                        <span class="status-active">Active</span>
-                                    {% else %}
-                                        <span class="status-inactive">Inactive</span>
-                                    {% endif %}
-                                </td>
-                                <td>{{ job.created_at|date:"d M, Y" }}</td>
-                                <td class="actions">
-                                    <!-- NEW: Link to the update page for the specific job -->
-                                    <a href="{% url 'job-update' job.pk %}">Edit</a>
-                                    <!-- NEW: Link to the delete confirmation page -->
-                                    <a href="{% url 'job-delete' job.pk %}" class="delete">Delete</a>
-                                </td>
+                                <th>Title</th>
+                                <th>Status</th>
+                                <th>Created At</th>
+                                <th>Actions</th>
                             </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            {% else %}
-                <p class="no-jobs">No job postings found for your company. Create one to get started!</p>
-            {% endif %}
+                        </thead>
+                        <tbody>
+                            {% for job in job_postings %}
+                                <tr>
+                                    <td>{{ job.title }}</td>
+                                    <td>
+                                        {% if job.is_active %}
+                                            <span class="status-active">Active</span>
+                                        {% else %}
+                                            <span class="status-inactive">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ job.created_at|date:"d M, Y" }}</td>
+                                    <td class="actions">
+                                        <a href="{% url 'job-update' job.pk %}">Edit</a>
+                                        <a href="{% url 'job-delete' job.pk %}" class="delete">Delete</a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <p class="no-items">No job postings found for your company.</p>
+                {% endif %}
+            </div>
         </div>
+
+        <!-- NEW SECTION FOR CANDIDATES -->
+        <div class="content-section">
+            <div class="list-card">
+                <h3>Candidates</h3>
+                {% if candidates %}
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Resume</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for candidate in candidates %}
+                                <tr>
+                                    <td>{{ candidate.first_name }} {{ candidate.last_name }}</td>
+                                    <td>{{ candidate.email }}</td>
+                                    <td>
+                                        <!-- Link to the uploaded resume file -->
+                                        <a href="{{ candidate.resume.url }}" target="_blank">Download CV</a>
+                                    </td>
+                                    <td class="actions">
+                                        <!-- Placeholder for future actions -->
+                                        <a href="#">Edit</a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <p class="no-items">No candidates found for your company.</p>
+                {% endif %}
+            </div>
+        </div>
+
     </div>
 
 </body>

@@ -37,10 +37,17 @@ Admin Configuration Corrected (AlreadyRegistered): Resolved a django.contrib.adm
 End-to-End Authentication Flow Tested: The complete user journey (visiting a protected page -> redirect to login -> successful login -> redirect to dashboard -> logout) was successfully tested and confirmed to be fully functional.
 
 ----------------------04.07.2025----------------------------------------------------------------------
-
 New Feature Development Started: A separate development branch was created to work on the new job posting feature in an organized manner.
 Job Posting Creation Enabled: Functionality was implemented allowing users to create new job postings via a dedicated form.
 Dashboard Enhanced with Job Listings: The main dashboard was updated to display a list of all job postings associated with the logged-in user's company.
 Editing and Deletion Functionality Added: Users were given the ability to securely edit and delete their existing job postings, including a confirmation step for deletions.
 User Interface Pages Created: All necessary web pages and links for creating, viewing, editing, and deleting job postings were structured and implemented.
-Job Posting Management Cycle Completed: The full management cycle for job postings (Create, Read, Update, and Delete) was successfully developed and tested, marking the completion of a major project modul
+Job Posting Management Cycle Completed: The full management cycle for job postings (Create, Read, Update, and Delete) was successfully developed and tested, marking the completion of a major project modul.
+
+----------------------07.07.2025----------------------------------------------------------------------
+New Feature Development Started: A new Git branch (feature/candidate-management) was created to begin work on the candidate management module.
+File Upload System Configured: The project's settings (settings.py) and main URL configuration were updated to handle media file uploads, specifically for candidate resumes.
+Candidate Creation Enabled: A new form and a corresponding view were developed, allowing HR employees to add new candidates to the system, including their name, email, and a PDF resume.
+Candidate Listing Implemented: The main dashboard was enhanced to display a list of all candidates associated with the user's company.
+Resume Access Enabled: The candidate list on the dashboard now includes a direct link to view or download each candidate's uploaded resume.
+Candidate Management Cycle (Create/Read) Completed: The initial phase of the candidate module, allowing users to add and view candidates, was successfully completed and tested.
