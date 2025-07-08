@@ -51,3 +51,11 @@ Candidate Creation Enabled: A new form and a corresponding view were developed, 
 Candidate Listing Implemented: The main dashboard was enhanced to display a list of all candidates associated with the user's company.
 Resume Access Enabled: The candidate list on the dashboard now includes a direct link to view or download each candidate's uploaded resume.
 Candidate Management Cycle (Create/Read) Completed: The initial phase of the candidate module, allowing users to add and view candidates, was successfully completed and tested.
+
+----------------------08.07.2025----------------------------------------------------------------------
+AI Feature Development Initiated: The optional AI-powered job title generation feature was started by creating a dedicated Git branch for its development.
+Backend API Endpoint Created: A new backend service was developed in Django. This service's sole purpose is to receive requests from the user's browser and communicate with the external Hugging Face AI API.
+Interactive Frontend Implemented: The "Job Posting Editor" page was updated with a "Suggest Title with AI" button and the necessary JavaScript code to send the job description to our new backend service.
+API Configuration and Security: API credentials and URLs were securely configured using the .env file, ensuring no sensitive information is stored directly in the source code.
+Extensive API Debugging: A series of API connection and response errors (including 401 Unauthorized, 404 Not Found, and 500 Internal Server Error) were diagnosed and resolved to establish a stable connection with the AI service.
+Iterative Refinement of AI Logic: The code for sending requests and parsing the AI's response was refined multiple times to better handle errors and improve the quality of the generated title.

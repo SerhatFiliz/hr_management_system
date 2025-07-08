@@ -1,5 +1,3 @@
-# portal/urls.py
-
 from django.urls import path
 # Import all the views we have created
 from .views import (
@@ -7,7 +5,8 @@ from .views import (
     JobPostingCreateView,
     JobPostingUpdateView,
     JobPostingDeleteView,
-    CandidateCreateView
+    CandidateCreateView,
+    generate_job_title_view,
 )
 
 urlpatterns = [
@@ -32,4 +31,8 @@ urlpatterns = [
     # Path for creating a new candidate.
     # The URL will be /portal/candidates/new/
     path('candidates/new/', CandidateCreateView.as_view(), name='candidate-create'),
+
+    # Path for generating a job title using an external API.
+    # This URL will be used to send a request to the API to generate a job title.
+    path('api/generate-title/', generate_job_title_view, name='api-generate-title'),
 ]

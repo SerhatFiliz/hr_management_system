@@ -139,3 +139,9 @@ LOGIN_REDIRECT_URL = '/portal/dashboard/'
 
 # URL to redirect to for login when a user tries to access a protected page.
 LOGIN_URL = '/accounts/login/'
+
+# --- HUGGING FACE API CONFIGURATION (SECURE) ---
+# Reads the API configuration securely from the .env file.
+# The second argument (e.g., 'default_url') is a fallback value if the variable is not found.
+HUGGING_FACE_API_URL = os.getenv("HUGGING_FACE_API_URL")
+HUGGING_FACE_API_KEY = os.getenv("HUGGING_FACE_API_KEY")

@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>New Job Posting - HR Core</title>
+    <title>Job Posting Editor - HR Core</title>
     <style>
+        /* A simplified style block for clarity */
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 40px; background-color: #f8f9fa; display: flex; justify-content: center; align-items: center; min-height: 90vh;}
         .container { background-color: #fff; padding: 40px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 600px; width: 100%;}
         h2 { text-align: center; color: #343a40; margin-bottom: 25px; }
@@ -17,48 +18,85 @@
             border-radius: 4px;
             box-sizing: border-box;
         }
-        textarea {
-            min-height: 120px;
-            resize: vertical;
-        }
-        input[type="checkbox"] {
-            margin-right: 10px;
-        }
+        textarea { min-height: 150px; }
         button {
-            width: 100%;
             padding: 12px;
-            background-color: #28a745;
             color: white;
             border: none;
             border-radius: 4px;
             cursor: pointer;
             font-size: 16px;
             font-weight: bold;
-            margin-top: 15px;
+            margin-top: 10px;
         }
-        button:hover { background-color: #218838; }
-        .cancel-link {
-            display: block;
-            text-align: center;
-            margin-top: 20px;
-            color: #6c757d;
-            text-decoration: none;
-        }
-        .cancel-link:hover {
-            text-decoration: underline;
-        }
+        .btn-save { width: 100%; background-color: #28a745; }
+        .btn-ai { width: 100%; background-color: #6c757d; margin-top: 0; }
+        .cancel-link { display: block; text-align: center; margin-top: 20px; color: #6c757d; text-decoration: none; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2>Create New Job Post</h2>
+        <h2>Job Posting Editor</h2>
 
         <form method="post">
             {% csrf_token %}
+            
+            <!-- We revert to using the simple 'as_p' to render the form. -->
             {{ form.as_p }}
-            <button type="submit">Save Post</button>
+
+            <!-- The AI button is now placed simply after the form fields. -->
+            <button type="button" id="generate-title-btn" class="btn-ai">Suggest Title with AI</button>
+            
+            <button type="submit" class="btn-save">Save Posting</button>
             <a href="{% url 'dashboard' %}" class="cancel-link">Cancel</a>
         </form>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            
+            const generateBtn = document.getElementById('generate-title-btn');
+            const descriptionField = document.getElementById('id_description');
+            const titleField = document.getElementById('id_title');
+            const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+
+            generateBtn.addEventListener('click', function() {
+                const descriptionText = descriptionField.value;
+                if (!descriptionText.trim()) {
+                    alert('Please enter a description first.');
+                    return;
+                }
+
+                generateBtn.textContent = 'Generating...';
+                generateBtn.disabled = true;
+
+                fetch("{% url 'api-generate-title' %}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken 
+                    },
+                    body: JSON.stringify({ description: descriptionText })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.title) {
+                        titleField.value = data.title;
+                    } else if (data.error) {
+                        alert('Error: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An unexpected error occurred.');
+                })
+                .finally(() => {
+                    generateBtn.textContent = 'Suggest Title with AI';
+                    generateBtn.disabled = false;
+                });
+            });
+        });
+    </script>
+
 </body>
 </html>

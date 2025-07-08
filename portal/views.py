@@ -8,6 +8,12 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from .forms import JobPostingForm, CandidateForm
 from .models import JobPosting, Employee, Candidate 
 
+import json  # The standard Python library that allows reading and writing JSON data.
+import requests  # A popular library that allows Python to send requests to external websites/APIs.
+from django.http import JsonResponse  # A special tool in Django that returns a response in JSON format instead of an HTML page.
+from django.views.decorators.csrf import csrf_exempt  # A "special permission card" that disables security checks for a specific view.
+from django.conf import settings  # Allows access to variables (like an API key) defined in the project's settings.py file.
+from django.contrib.auth.decorators import login_required  # A security guard that ensures only logged-in users can run a specific function.
 class DashboardView(LoginRequiredMixin, TemplateView):
     """
     Displays the main dashboard for a logged-in user.
@@ -30,7 +36,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             # Handle cases where a user might not have an associated employee profile
             context['company'] = None
             context['job_postings'] = []
-            context['candidates'] = [] # NEW
+            context['candidates'] = [] 
 
         context['user'] = self.request.user
         return context
@@ -57,7 +63,7 @@ def dashboard_function(request):
     return render(request, 'portal/dashboard.html', context)
 """
 
-
+# -------------------------------------------Job Posting Creation View --------------------------------
 class JobPostingCreateView(LoginRequiredMixin, CreateView):
     """
     Handles the creation of a new JobPosting.
@@ -93,7 +99,7 @@ def job_posting_create_function(request):
     return render(request, 'portal/job_posting_editor.html', {'form': form})
 """
 
-
+# -------------------------------------------Job Posting Update View --------------------------------
 class JobPostingUpdateView(LoginRequiredMixin, UpdateView):
     """
     Handles the updating of an existing JobPosting.
@@ -132,7 +138,7 @@ def job_posting_update_function(request, pk):
     return render(request, 'portal/job_posting_editor.html', {'form': form})
 """
 
-
+# -------------------------------------------Job Posting Deletion View --------------------------------
 class JobPostingDeleteView(LoginRequiredMixin, DeleteView):
     """
     Handles the deletion of a JobPosting.
@@ -164,7 +170,7 @@ def job_posting_delete_function(request, pk):
     # 'object' is the default context name used by DeleteView.
     return render(request, 'portal/job_posting_confirm_delete.html', {'object': job_posting})
 """
-
+# -------------------------------------------Candidate Creation View --------------------------------
 class CandidateCreateView(LoginRequiredMixin, CreateView):
     """
     Handles the creation of a new Candidate, including resume upload.
@@ -194,3 +200,67 @@ class CandidateCreateView(LoginRequiredMixin, CreateView):
         
         # Call the parent class's method to save the object and redirect.
         return super().form_valid(form)
+
+@csrf_exempt
+@login_required
+def generate_job_title_view(request):
+    """
+    Receives a job description, sends it to the specified Hugging Face model,
+    and returns a summarized title. This version has improved error handling.
+    """
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            description = data.get('description', '')
+
+            if not description:
+                return JsonResponse({'error': 'Description cannot be empty.'}, status=400)
+
+            # Payload for the summarization model (facebook/bart-large-cnn)
+            api_payload = {
+                "inputs": description,
+                # Parameters to control the output length, as per project requirements.
+                "parameters": {"max_length": 50, "min_length": 5}
+            }
+            
+            headers = {"Authorization": f"Bearer {settings.HUGGING_FACE_API_KEY}"}
+
+            # Send request with a 30-second timeout.
+            response = requests.post(
+                settings.HUGGING_FACE_API_URL, 
+                headers=headers, 
+                json=api_payload,
+                timeout=30
+            )
+
+            # Handle non-200 responses gracefully
+            if response.status_code != 200:
+                try:
+                    error_data = response.json()
+                    api_error_message = error_data.get('error', 'Unknown API error.')
+                    # Check for the common "model is loading" error
+                    if 'is currently loading' in api_error_message:
+                        estimated_time = error_data.get('estimated_time', 20)
+                        user_message = f"The AI model is currently warming up. Please try again in {estimated_time:.0f} seconds."
+                        return JsonResponse({'error': user_message}, status=503) # Service Unavailable
+                    return JsonResponse({'error': f"API Error: {api_error_message}"}, status=response.status_code)
+                except json.JSONDecodeError:
+                    return JsonResponse({'error': f"API returned a non-JSON response: {response.text}"}, status=response.status_code)
+
+            result = response.json()
+            
+            # Safely parse the response for 'summary_text'
+            generated_title = "New Job Posting" # Default title as per requirements.
+            if result and isinstance(result, list) and len(result) > 0:
+                title_from_api = result[0].get('summary_text')
+                if title_from_api:
+                    generated_title = title_from_api
+
+            return JsonResponse({'title': generated_title.strip()})
+
+        except requests.exceptions.Timeout:
+            return JsonResponse({'error': 'The request to the AI model timed out. The model might be loading. Please try again.'}, status=504)
+        except Exception as e:
+            return JsonResponse({'error': f'An unexpected server error occurred: {str(e)}'}, status=500)
+
+    return JsonResponse({'error': 'Invalid request method.'}, status=405)
