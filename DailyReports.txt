@@ -63,3 +63,7 @@ Iterative Refinement of AI Logic: The code for sending requests and parsing the 
 ----------------------09.07.2025-----------------------------------
 AI Response Logic Refined: To fix the issue of the AI returning long summary sentences, the backend logic was updated to process the API's response, split it into individual sentences, and use only the first sentence as the final suggested job title.
 Critical Security Vulnerability Patched: A major security vulnerability was identified and fixed, which previously allowed unauthenticated users to access data creation, update, and deletion pages by directly entering the URL. The LoginRequiredMixin was added to all relevant views, ensuring these pages are now properly protected and require user login.
+Application System Implemented: The Application model was created and integrated, establishing a crucial link between Candidates and JobPostings.
+Job Posting Detail Page Developed: A new detail page was created for each job posting, designed to show specific job information and a list of candidates who have applied for that position.
+Application Status Management Added: A system was implemented for updating the status of an application (e.g., from 'Pending' to 'Reviewed' or 'Interviewing'), allowing for basic workflow tracking.
+Candidate Editing Functionality Completed: The previously non-functional "Edit" button for candidates on the dashboard was made operational by creating the necessary view, URL, and template logic.

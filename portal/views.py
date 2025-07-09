@@ -1,6 +1,3 @@
-# portal/views.py
-
-# --- Standard Python Libraries ---
 import json  # For working with JSON data format (used in our API view).
 import re    # For using regular expressions (used to split the AI's response).
 import requests # For making HTTP requests to external services (like the Hugging Face API).
@@ -13,13 +10,13 @@ from django.http import JsonResponse # To send responses in JSON format, used fo
 from django.shortcuts import get_object_or_404, redirect, render # Common utility functions.
 from django.urls import reverse_lazy # To look up URL paths by their given name.
 from django.views.decorators.csrf import csrf_exempt # To bypass security checks for our internal API view.
-from django.views.generic import (CreateView, DeleteView, TemplateView,
-                                  UpdateView) # Django's built-in "factories" for common tasks.
+from django.views.generic import TemplateView, CreateView, UpdateView, DeleteView, DetailView # Django's built-in "factories" for common tasks.
+from django.contrib import messages # To show messages to the user (like success or error notifications).
 
 # --- Local Application Imports ---
 # Imports from other files within this 'portal' app. The '.' means 'from the same directory'.
-from .forms import CandidateForm, JobPostingForm
-from .models import Candidate, Employee, JobPosting
+from .forms import CandidateForm, JobPostingForm, ApplicationForm, ApplicationStatusForm
+from .models import Candidate, Employee, JobPosting, Application
 
 
 class DashboardView(LoginRequiredMixin, TemplateView):
@@ -67,7 +64,7 @@ def dashboard_function(request):
     context['user'] = request.user
     return render(request, 'portal/dashboard.html', context)
 """
-
+#-----------------------------------------------------------------------------------------------------------
 
 class JobPostingCreateView(LoginRequiredMixin, CreateView):
     """
@@ -104,7 +101,7 @@ def job_posting_create_function(request):
         form = JobPostingForm()
     return render(request, 'portal/job_posting_editor.html', {'form': form})
 """
-
+#-----------------------------------------------------------------------------------------------------------
 
 class JobPostingUpdateView(LoginRequiredMixin, UpdateView):
     """
@@ -138,7 +135,7 @@ def job_posting_update_function(request, pk):
         form = JobPostingForm(instance=job_posting)
     return render(request, 'portal/job_posting_editor.html', {'form': form})
 """
-
+#-----------------------------------------------------------------------------------------------------------
 
 class JobPostingDeleteView(LoginRequiredMixin, DeleteView):
     """
@@ -166,7 +163,7 @@ def job_posting_delete_function(request, pk):
         return redirect('dashboard')
     return render(request, 'portal/job_posting_confirm_delete.html', {'object': job_posting})
 """
-
+#-----------------------------------------------------------------------------------------------------------
 
 class CandidateCreateView(LoginRequiredMixin, CreateView):
     """
@@ -204,7 +201,94 @@ def candidate_create_function(request):
         form = CandidateForm()
     return render(request, 'portal/candidate_editor.html', {'form': form})
 """
+#-----------------------------------------------------------------------------------------------------------
+class CandidateUpdateView(LoginRequiredMixin, UpdateView):
+    """
+    Handles the updating of an existing Candidate profile.
+    """
+    # model: This view works with the Candidate model.
+    model = Candidate
+    
+    # form_class: It reuses the same form we use for creating candidates.
+    form_class = CandidateForm
+    
+    # template_name: It reuses the same editor template.
+    template_name = 'portal/candidate_editor.html'
+    
+    # success_url: Redirects back to the dashboard after a successful update.
+    success_url = reverse_lazy('dashboard')
 
+    def get_queryset(self):
+        """
+        SECURITY FEATURE: Ensures a user can ONLY edit candidates
+        that belong to their own company.
+        """
+        queryset = super().get_queryset()
+        return queryset.filter(company=self.request.user.employee.company)
+
+    def form_valid(self, form):
+        """
+        Adds a success message when the form is successfully updated.
+        """
+        messages.success(self.request, f"Candidate profile for {self.object.first_name} {self.object.last_name} has been updated.")
+        return super().form_valid(form)
+
+
+#-----------------------------------------------------------------------------------------------------------
+class JobPostingDetailView(LoginRequiredMixin, DetailView):
+    """
+    Displays the details of a single JobPosting.
+    This view is responsible for showing a specific job posting and, eventually,
+    the list of candidates who have applied for it.
+    """
+    # model: Tells the DetailView which database table to look into.
+    model = JobPosting
+    
+    # template_name: Specifies the HTML file that will be used to display the details.
+    # We will create this file in the next steps.
+    template_name = 'portal/job_posting_detail.html'
+    
+    # context_object_name: This sets the name of the variable that will hold the
+    # JobPosting object in our template. Instead of the default 'object',
+    # we'll use 'job_posting' which is more descriptive.
+    context_object_name = 'job_posting'
+
+    def get_queryset(self):
+        """
+        SECURITY FEATURE: This is a critical method for security.
+        It ensures that a user can only view the details of job postings
+        that belong to their own company. It filters the objects before
+        the DetailView tries to find one by its ID (pk).
+        """
+        # Get the default queryset (which is all JobPosting objects).
+        queryset = super().get_queryset()
+        # Filter it down to only the objects associated with the current user's company.
+        return queryset.filter(company=self.request.user.employee.company)
+
+
+"""
+# --- Function-Based Equivalent for JobPostingDetailView ---
+# The @login_required decorator does the same job as LoginRequiredMixin.
+@login_required
+def job_posting_detail_function(request, pk):
+    # This single line does the work of both 'model' and 'get_queryset'.
+    # It tries to get a JobPosting object with the given 'pk'.
+    # CRUCIALLY, it will only find it if the object's company matches
+    # the logged-in user's company. Otherwise, it raises a 404 Not Found error.
+    job_posting = get_object_or_404(JobPosting, pk=pk, company=request.user.employee.company)
+    
+    # This creates the context dictionary that will be sent to the template.
+    # This line is the equivalent of 'context_object_name = "job_posting"'.
+    context = {
+        'job_posting': job_posting
+    }
+    
+    # This renders the specified template with the context data.
+    # This line is the equivalent of 'template_name = "..."'.
+    return render(request, 'portal/job_posting_detail.html', context)
+"""
+
+#-----------------------------------------------------------------------------------------------------------
 
 # These decorators run before the view function. They are like security guards.
 @csrf_exempt      # This guard allows requests from our JavaScript without a standard form CSRF token.
@@ -293,3 +377,103 @@ def generate_job_title_view(request):
 
     # If the request was not a POST, return an error.
     return JsonResponse({'error': 'Invalid request method.'}, status=405)
+
+#-----------------------------------------------------------------------------------------------------------
+class ApplicationCreateView(LoginRequiredMixin, CreateView):
+    """
+    Handles the creation of a new Application, linking a Candidate to a JobPosting.
+    """
+    model = Application
+    form_class = ApplicationForm
+    template_name = 'portal/application_form.html'
+
+    def get_context_data(self, **kwargs):
+        """
+        CRITICAL: Adds the specific 'job_posting' object to the context.
+        This makes the job posting's details (like its title and pk)
+        available for use directly within the template.
+        """
+        context = super().get_context_data(**kwargs)
+        # Get the JobPosting object from the URL's pk and add it to the context.
+        context['job_posting'] = get_object_or_404(JobPosting, pk=self.kwargs['pk'])
+        return context
+
+    def get_form_kwargs(self):
+        """
+        This method passes the 'job_posting' object to the ApplicationForm's
+        __init__ method, so the form can correctly filter the candidate list.
+        """
+        kwargs = super().get_form_kwargs()
+        kwargs['job_posting'] = get_object_or_404(JobPosting, pk=self.kwargs['pk'])
+        return kwargs
+
+    def form_valid(self, form):
+        """
+        This method automatically sets the 'job_posting' for the new application
+        before it is saved to the database.
+        """
+        job_posting = get_object_or_404(JobPosting, pk=self.kwargs['pk'])
+        form.instance.job_posting = job_posting
+        
+        messages.success(self.request, f"Successfully applied {form.instance.candidate.first_name} to the job '{job_posting.title}'.")
+        
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        """
+        Redirects the user back to the detail page of the job posting
+        after a successful application.
+        """
+        return reverse_lazy('job-detail', kwargs={'pk': self.object.job_posting.pk})
+    
+    
+#------------------------------------------------------------------------------------------------------------
+class ApplicationUpdateView(LoginRequiredMixin, UpdateView):
+    """
+    Handles updating the status of an existing Application.
+    """
+    # model: This view works with the Application model.
+    model = Application
+    
+    # form_class: It uses the simple form we just created.
+    form_class = ApplicationStatusForm
+    
+    # template_name: The HTML file that will render the form.
+    template_name = 'portal/application_status_form.html'
+
+    def get_context_data(self, **kwargs):
+        """
+        Adds the application object itself to the context. This is useful
+        for displaying details about the application on the form page,
+        like the candidate's name and the job title.
+        """
+        context = super().get_context_data(**kwargs)
+        # The 'object' is automatically provided by DetailView/UpdateView.
+        # We add it to the context with a more descriptive name.
+        context['application'] = self.get_object()
+        return context
+
+    def get_queryset(self):
+        """
+        SECURITY FEATURE: This is a critical security method.
+        It ensures a user can ONLY update applications that belong to a job
+        posting from their own company.
+        """
+        queryset = super().get_queryset()
+        # The 'job_posting__company' lookup traverses the foreign key relationship.
+        return queryset.filter(job_posting__company=self.request.user.employee.company)
+
+    def get_success_url(self):
+        """
+        Redirects the user back to the detail page of the job posting
+        to which the application belongs.
+        """
+        # self.object refers to the Application instance that was just updated.
+        return reverse_lazy('job-detail', kwargs={'pk': self.object.job_posting.pk})
+
+    def form_valid(self, form):
+        """
+        Adds a success message when the form is successfully updated.
+        """
+        messages.success(self.request, f"Status for {self.object.candidate.first_name}'s application has been updated.")
+        return super().form_valid(form)

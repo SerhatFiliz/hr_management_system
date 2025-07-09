@@ -1,0 +1,38 @@
+{# templates/portal/application_form.html #}
+
+{% extends "base.html" %}
+
+{% block title %}Add Candidate to Job - HR Core{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-7">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                {# The 'job_posting' object is now directly available in the context, thanks to get_context_data. #}
+                <h2 class="card-title text-center mb-4">Add Candidate to "{{ job_posting.title }}"</h2>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    {# Display the candidate selection dropdown. #}
+                    <div class="mb-3">
+                        <label for="{{ form.candidate.id_for_label }}" class="form-label">{{ form.candidate.label }}</label>
+                        {# The form field is rendered here. It will be a dropdown list. #}
+                        {{ form.candidate }}
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">Add to Job</button>
+                    </div>
+
+                    <p class="text-center mt-3">
+                        {# FIXED: The link now correctly uses the 'job_posting' object from the context. #}
+                        <a href="{% url 'job-detail' pk=job_posting.pk %}" class="text-muted">Cancel</a>
+                    </p>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

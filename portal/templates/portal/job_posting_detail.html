@@ -1,0 +1,96 @@
+{# templates/portal/job_posting_detail.html #}
+
+{# This template inherits its main structure (like the navbar) from base.html #}
+{% extends "base.html" %}
+
+{# This block overrides the default title in base.html with a page-specific title. #}
+{% block title %}{{ job_posting.title }} - HR Core{% endblock %}
+
+{# This is the main content block that will be injected into the 'content' block of base.html. #}
+{% block content %}
+<div class="container mt-4">
+    {# --- Page Header --- #}
+    {# This provides a clear navigation path back to the main dashboard. #}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">← Back to Dashboard</a>
+    </div>
+
+    {# --- Job Posting Details Card --- #}
+    {# This card displays the main information about the specific job posting. #}
+    {# 'job_posting' is the context object passed from JobPostingDetailView. #}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light">
+            <h1 class="h3 mb-0">{{ job_posting.title }}</h1>
+        </div>
+        <div class="card-body">
+            <h5 class="card-subtitle mb-2 text-muted">
+                Status: 
+                {% if job_posting.is_active %}
+                    <span class="badge bg-success">Active</span>
+                {% else %}
+                    <span class="badge bg-secondary">Inactive</span>
+                {% endif %}
+            </h5>
+            {# The 'linebreaks' filter is a Django template filter. #}
+            {# It converts plain text newlines into proper HTML paragraphs (<p>) and line breaks (<br>). #}
+            <p class="card-text mt-4">{{ job_posting.description|linebreaks }}</p>
+        </div>
+        <div class="card-footer text-muted small">
+            {# Accessing related user's username through the foreign key relationship. #}
+            Created on {{ job_posting.created_at|date:"F d, Y" }} by {{ job_posting.created_by.user.username }}
+        </div>
+    </div>
+
+    {# --- Associated Candidates Section --- #}
+    {# This section will list all candidates who have applied for this specific job. #}
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="h4">Applicants for this Position</h2>
+        {# This button links to the page for creating a new Application for this specific job. #}
+        {# We pass the job_posting's primary key (pk) to the URL. #}
+        <a href="{% url 'application-create' pk=job_posting.pk %}" class="btn btn-primary">Add Existing Candidate to Job</a>
+    </div>
+    
+    <div class="card shadow-sm">
+        <div class="card-body">
+            {# This checks if any applications exist for this job posting. #}
+            {# 'job_posting.applications.all' works because we set related_name='applications' #}
+            {# on the ForeignKey in the Application model. It's a reverse relationship lookup. #}
+            {% if job_posting.applications.all %}
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Candidate Name</th>
+                            <th>Email</th>
+                            <th>Application Date</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {# Loop through each 'application' object related to this job posting. #}
+                        {% for application in job_posting.applications.all %}
+                            <tr>
+                                {# Accessing the candidate's details through the application object. #}
+                                <td>{{ application.candidate.first_name }} {{ application.candidate.last_name }}</td>
+                                <td>{{ application.candidate.email }}</td>
+                                <td>{{ application.application_date|date:"d M, Y" }}</td>
+                                <td><span class="badge bg-info">{{ application.status }}</span></td>
+                                <td class="actions">
+                                    {# 'application.candidate.resume.url' provides the direct web path to the uploaded file. #}
+                                    <a href="{{ application.candidate.resume.url }}" target="_blank" class="btn btn-sm btn-outline-info">View CV</a>
+                                    
+                                    <!-- NEW: Link to the update page for this specific application -->
+                                    <a href="{% url 'application-update' pk=application.pk %}" class="btn btn-sm btn-outline-primary">Update Status</a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                {# This message is shown if no applications are found for this job. #}
+                <p class="text-center text-muted mt-3">No candidates have applied for this job yet.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
