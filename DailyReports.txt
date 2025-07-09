@@ -59,3 +59,7 @@ Interactive Frontend Implemented: The "Job Posting Editor" page was updated with
 API Configuration and Security: API credentials and URLs were securely configured using the .env file, ensuring no sensitive information is stored directly in the source code.
 Extensive API Debugging: A series of API connection and response errors (including 401 Unauthorized, 404 Not Found, and 500 Internal Server Error) were diagnosed and resolved to establish a stable connection with the AI service.
 Iterative Refinement of AI Logic: The code for sending requests and parsing the AI's response was refined multiple times to better handle errors and improve the quality of the generated title.
+
+----------------------09.07.2025-----------------------------------
+AI Response Logic Refined: To fix the issue of the AI returning long summary sentences, the backend logic was updated to process the API's response, split it into individual sentences, and use only the first sentence as the final suggested job title.
+Critical Security Vulnerability Patched: A major security vulnerability was identified and fixed, which previously allowed unauthenticated users to access data creation, update, and deletion pages by directly entering the URL. The LoginRequiredMixin was added to all relevant views, ensuring these pages are now properly protected and require user login.

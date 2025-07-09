@@ -1,68 +1,30 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - HR Core</title>
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 0; background-color: #f8f9fa; }
-        .navbar { background-color: #fff; padding: 15px 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; }
-        .navbar .brand { font-size: 1.5em; font-weight: bold; color: #007bff; }
-        .navbar .user-info { font-weight: 500; }
-        .navbar a { color: #dc3545; text-decoration: none; margin-left: 15px; font-weight: bold; }
-        .container { padding: 40px; max-width: 960px; margin: auto; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
-        .header h2 { margin: 0; color: #343a40; }
-        .header-buttons { display: flex; gap: 10px; }
-        .btn { padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold; color: white; }
-        .btn-primary { background-color: #007bff; }
-        .btn-primary:hover { background-color: #0056b3; }
-        .btn-secondary { background-color: #6c757d; }
-        .btn-secondary:hover { background-color: #5a6268; }
-        .content-section { margin-bottom: 40px; }
-        .list-card { background-color: #fff; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); overflow: hidden; }
-        .list-card h3 { padding: 20px 15px 0 15px; margin: 0; }
-        .list-card table { width: 100%; border-collapse: collapse; }
-        .list-card th, .list-card td { padding: 15px; text-align: left; border-bottom: 1px solid #dee2e6; }
-        .list-card th { background-color: #f8f9fa; color: #495057; font-weight: 600; }
-        .list-card tr:last-child td { border-bottom: none; }
-        .status-active { color: #28a745; font-weight: bold; }
-        .status-inactive { color: #6c757d; }
-        .actions a { color: #007bff; text-decoration: none; margin-right: 10px; }
-        .actions a.delete { color: #dc3545; }
-        .no-items { text-align: center; padding: 50px; color: #6c757d; }
-    </style>
-</head>
-<body>
+{% extends "base.html" %}
 
-    <nav class="navbar">
-        <div class="brand">HR Core</div>
-        <div class="user-info">
-            Welcome, <strong>{{ user.username }}</strong>
-            <a href="{% url 'logout' %}">Logout</a>
+{% block title %}Dashboard - HR Core{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+        <h1 class="h2">{{ company.name|default:"My Company" }} Dashboard</h1>
+        <div class="d-flex gap-2">
+            <a href="{% url 'candidate-create' %}" class="btn btn-secondary">Add Candidate</a>
+            <a href="{% url 'job-create' %}" class="btn btn-primary">Create Job Posting</a>
         </div>
-    </nav>
+    </div>
 
-    <div class="container">
-        <div class="header">
-            <h2>{{ company.name }} - Dashboard</h2>
-            <div class="header-buttons">
-                <a href="{% url 'candidate-create' %}" class="btn btn-secondary">Add New Candidate</a>
-                <a href="{% url 'job-create' %}" class="btn btn-primary">Create New Posting</a>
-            </div>
-        </div>
-
-        <div class="content-section">
-            <div class="list-card">
-                <h3>Job Postings</h3>
-                {% if job_postings %}
-                    <table>
+    <!-- Job Postings Section -->
+    <h2 class="h4 mb-3">Job Postings</h2>
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            {% if job_postings %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
                         <thead>
                             <tr>
-                                <th>Title</th>
-                                <th>Status</th>
-                                <th>Created At</th>
-                                <th>Actions</th>
+                                <th scope="col">Title</th>
+                                <th scope="col">Status</th>
+                                <th scope="col">Created At</th>
+                                <th scope="col" class="text-end">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -71,38 +33,40 @@
                                     <td>{{ job.title }}</td>
                                     <td>
                                         {% if job.is_active %}
-                                            <span class="status-active">Active</span>
+                                            <span class="badge bg-success">Active</span>
                                         {% else %}
-                                            <span class="status-inactive">Inactive</span>
+                                            <span class="badge bg-secondary">Inactive</span>
                                         {% endif %}
                                     </td>
                                     <td>{{ job.created_at|date:"d M, Y" }}</td>
-                                    <td class="actions">
-                                        <a href="{% url 'job-update' job.pk %}">Edit</a>
-                                        <a href="{% url 'job-delete' job.pk %}" class="delete">Delete</a>
+                                    <td class="text-end">
+                                        <a href="{% url 'job-update' job.pk %}" class="btn btn-sm btn-outline-primary">Edit</a>
+                                        <a href="{% url 'job-delete' job.pk %}" class="btn btn-sm btn-outline-danger">Delete</a>
                                     </td>
                                 </tr>
                             {% endfor %}
                         </tbody>
                     </table>
-                {% else %}
-                    <p class="no-items">No job postings found for your company.</p>
-                {% endif %}
-            </div>
+                </div>
+            {% else %}
+                <p class="text-center text-muted mt-3">No job postings found. Create one to get started!</p>
+            {% endif %}
         </div>
+    </div>
 
-        <!-- SECTION FOR CANDIDATES -->
-        <div class="content-section">
-            <div class="list-card">
-                <h3>Candidates</h3>
-                {% if candidates %}
-                    <table>
+    <!-- Candidates Section -->
+    <h2 class="h4 mb-3">Candidates</h2>
+    <div class="card shadow-sm">
+        <div class="card-body">
+            {% if candidates %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
                         <thead>
                             <tr>
-                                <th>Name</th>
-                                <th>Email</th>
-                                <th>Resume</th>
-                                <th>Actions</th>
+                                <th scope="col">Name</th>
+                                <th scope="col">Email</th>
+                                <th scope="col">Resume</th>
+                                <th scope="col" class="text-end">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -111,24 +75,20 @@
                                     <td>{{ candidate.first_name }} {{ candidate.last_name }}</td>
                                     <td>{{ candidate.email }}</td>
                                     <td>
-                                        <!-- Link to the uploaded resume file -->
-                                        <a href="{{ candidate.resume.url }}" target="_blank">Download CV</a>
+                                        <a href="{{ candidate.resume.url }}" target="_blank" class="btn btn-sm btn-outline-info">View CV</a>
                                     </td>
-                                    <td class="actions">
-                                        <!-- Placeholder for future actions -->
-                                        <a href="#">Edit</a>
+                                    <td class="text-end">
+                                        <a href="#" class="btn btn-sm btn-outline-primary">Edit</a>
                                     </td>
                                 </tr>
                             {% endfor %}
                         </tbody>
                     </table>
-                {% else %}
-                    <p class="no-items">No candidates found for your company.</p>
-                {% endif %}
-            </div>
+                </div>
+            {% else %}
+                <p class="text-center text-muted mt-3">No candidates found for your company.</p>
+            {% endif %}
         </div>
-
     </div>
-
-</body>
-</html>
+</div>
+{% endblock %}

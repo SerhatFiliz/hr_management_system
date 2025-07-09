@@ -1,77 +1,59 @@
-{# templates/accounts/login.html #}
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Giriş Yap - HR Core</title>
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 40px; background-color: #f8f9fa; display: flex; justify-content: center; align-items: center; min-height: 90vh;}
-        .container { background-color: #fff; padding: 40px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 400px; width: 100%;}
-        h2 { text-align: center; color: #343a40; margin-bottom: 25px; }
-        form div { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; color: #495057; }
-        input[type="text"], input[type="password"] {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ced4da;
-            border-radius: 4px;
-            box-sizing: border-box; /* padding'in genişliği etkilememesi için */
-        }
-        button {
-            width: 100%;
-            padding: 12px;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: bold;
-            margin-top: 15px;
-        }
-        button:hover { background-color: #0056b3; }
-        .errorlist { color: #dc3545; font-size: 0.9em; list-style-type: none; padding: 0; margin-top: 5px; }
-        .non-field-errors { padding-bottom: 10px; }
-        .messages { list-style-type: none; padding: 0; margin-bottom: 20px;}
-        .messages li.error { color: #dc3545; font-weight: bold; text-align: center; background-color: #f8d7da; padding: 10px; border-radius: 4px; }
-        p.register-link { text-align: center; margin-top: 20px; }
-        p.register-link a { color: #007bff; text-decoration: none; }
-        p.register-link a:hover { text-decoration: underline; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h2>Mirsis İK Giriş</h2>
 
-        {% if form.non_field_errors %}
-            <ul class="messages">
-                {% for error in form.non_field_errors %}
-                    <li class="error">{{ error }}</li>
-                {% endfor %}
-            </ul>
-        {% endif %}
+{% extends "base.html" %}
 
-        <form method="post">
-            {% csrf_token %}
+{% block title %}Login - HR Core{% endblock %}
 
-            <div>
-                {{ form.username.label_tag }}
-                {{ form.username }}
-                {{ form.username.errors }}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h2 class="card-title text-center mb-4">Login to HR Core</h2>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <!-- Renders non-field errors (e.g., "Invalid username or password") at the top -->
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {% for error in form.non_field_errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <!-- Username Field -->
+                    <div class="mb-3">
+                        <label for="{{ form.username.id_for_label }}" class="form-label">{{ form.username.label }}</label>
+                        <input type="text" name="{{ form.username.html_name }}" id="{{ form.username.id_for_label }}" class="form-control" required>
+                        {% if form.username.errors %}
+                            <div class="text-danger small mt-1">
+                                {{ form.username.errors.as_text }}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Password Field -->
+                    <div class="mb-3">
+                        <label for="{{ form.password.id_for_label }}" class="form-label">{{ form.password.label }}</label>
+                        <input type="password" name="{{ form.password.html_name }}" id="{{ form.password.id_for_label }}" class="form-control" required>
+                         {% if form.password.errors %}
+                            <div class="text-danger small mt-1">
+                                {{ form.password.errors.as_text }}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">Login</button>
+                    </div>
+
+                    <p class="text-center mt-3">
+                        Don't have an account? <a href="{% url 'register' %}">Register here</a>
+                    </p>
+                </form>
             </div>
-            <div>
-                {{ form.password.label_tag }}
-                {{ form.password }}
-                {{ form.password.errors }}
-            </div>
-
-            <button type="submit">Giriş Yap</button>
-
-            <p class="register-link">
-                Hesabın yok mu? <a href="{% url 'register' %}">Kayıt Ol</a>
-            </p>
-        </form>
+        </div>
     </div>
-</body>
-</html>
+</div>
+{% endblock %}

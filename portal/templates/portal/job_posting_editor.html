@@ -1,102 +1,126 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Job Posting Editor - HR Core</title>
-    <style>
-        /* A simplified style block for clarity */
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 40px; background-color: #f8f9fa; display: flex; justify-content: center; align-items: center; min-height: 90vh;}
-        .container { background-color: #fff; padding: 40px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 600px; width: 100%;}
-        h2 { text-align: center; color: #343a40; margin-bottom: 25px; }
-        form p { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; color: #495057; }
-        input[type="text"], textarea {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ced4da;
-            border-radius: 4px;
-            box-sizing: border-box;
-        }
-        textarea { min-height: 150px; }
-        button {
-            padding: 12px;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: bold;
-            margin-top: 10px;
-        }
-        .btn-save { width: 100%; background-color: #28a745; }
-        .btn-ai { width: 100%; background-color: #6c757d; margin-top: 0; }
-        .cancel-link { display: block; text-align: center; margin-top: 20px; color: #6c757d; text-decoration: none; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h2>Job Posting Editor</h2>
+{# templates/portal/job_posting_editor.html #}
 
-        <form method="post">
-            {% csrf_token %}
-            
-            <!-- We revert to using the simple 'as_p' to render the form. -->
-            {{ form.as_p }}
+{% extends "base.html" %}
 
-            <!-- The AI button is now placed simply after the form fields. -->
-            <button type="button" id="generate-title-btn" class="btn-ai">Suggest Title with AI</button>
-            
-            <button type="submit" class="btn-save">Save Posting</button>
-            <a href="{% url 'dashboard' %}" class="cancel-link">Cancel</a>
-        </form>
+{% block title %}Job Posting Editor - HR Core{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-7">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h2 class="card-title text-center mb-4">Job Posting Editor</h2>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <!-- Title Field with AI Button -->
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <label for="{{ form.title.id_for_label }}" class="form-label">{{ form.title.label }}</label>
+                            <button type="button" id="generate-title-btn" class="btn btn-sm btn-secondary">Suggest with AI</button>
+                        </div>
+                        <input type="text" name="{{ form.title.html_name }}" id="{{ form.title.id_for_label }}" class="form-control" required>
+                    </div>
+
+                    <!-- Description Field -->
+                    <div class="mb-3">
+                        <label for="{{ form.description.id_for_label }}" class="form-label">{{ form.description.label }}</label>
+                        <textarea name="{{ form.description.html_name }}" id="{{ form.description.id_for_label }}" class="form-control" rows="6" required></textarea>
+                    </div>
+
+                    <!-- Is Active Field -->
+                    <div class="form-check mb-3">
+                        <input type="checkbox" name="{{ form.is_active.html_name }}" id="{{ form.is_active.id_for_label }}" class="form-check-input" {% if form.is_active.value %}checked{% endif %}>
+                        <label for="{{ form.is_active.id_for_label }}" class="form-check-label">{{ form.is_active.label }}</label>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">Save Posting</button>
+                    </div>
+
+                    <p class="text-center mt-3">
+                        <a href="{% url 'dashboard' %}" class="text-muted">Cancel</a>
+                    </p>
+                </form>
+            </div>
+        </div>
     </div>
+</div>
 
-    <script>
+<!-- JavaScript for AI Button -->
+<script>
+        // This is a safety measure. It ensures that the JavaScript code runs only
+        // after the entire HTML document has been loaded and is ready.
+        // This prevents errors from trying to find elements that don't exist yet.
         document.addEventListener('DOMContentLoaded', function() {
             
+            // Find the specific HTML elements we need to interact with by their unique IDs.
             const generateBtn = document.getElementById('generate-title-btn');
             const descriptionField = document.getElementById('id_description');
             const titleField = document.getElementById('id_title');
+
+            // Find the CSRF token, which Django requires for security on POST requests.
+            // We select the input element that has the name 'csrfmiddlewaretoken'.
             const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
 
+            // Attach a function to run whenever the 'generateBtn' is clicked by the user.
             generateBtn.addEventListener('click', function() {
+                
+                // Get the current text from the description textarea.
                 const descriptionText = descriptionField.value;
+
+                // --- Input Validation ---
+                // Check if the user has actually entered a description.
                 if (!descriptionText.trim()) {
+                    // If not, show an alert and stop the function.
                     alert('Please enter a description first.');
                     return;
                 }
 
+                // --- User Feedback ---
+                // Provide visual feedback to the user that something is happening.
                 generateBtn.textContent = 'Generating...';
-                generateBtn.disabled = true;
+                generateBtn.disabled = true; // Prevent multiple clicks while waiting.
 
+                // --- API Request ---
+                // Use the modern 'fetch' API to send an asynchronous request to our Django backend.
                 fetch("{% url 'api-generate-title' %}", {
-                    method: 'POST',
+                    method: 'POST', // We are sending data, so we use the POST method.
                     headers: {
+                        // Tell the server we are sending data in JSON format.
                         'Content-Type': 'application/json',
+                        // Include the CSRF token in the request header for Django's security.
                         'X-CSRFToken': csrfToken 
                     },
+                    // Convert our JavaScript object into a JSON string to send in the request body.
                     body: JSON.stringify({ description: descriptionText })
                 })
-                .then(response => response.json())
+                // --- Response Handling (Promise Chain) ---
+                // This chain of .then() handles the response when it arrives from the server.
+                .then(response => response.json()) // First, parse the incoming response text as JSON.
                 .then(data => {
+                    // This runs after the JSON data has been successfully parsed.
                     if (data.title) {
+                        // If the server sent back a 'title', update the title input field.
                         titleField.value = data.title;
                     } else if (data.error) {
+                        // If the server sent back an 'error' message, show it to the user.
                         alert('Error: ' + data.error);
                     }
                 })
                 .catch(error => {
+                    // This block runs if there was a network error or any other issue with the fetch request.
                     console.error('Error:', error);
                     alert('An unexpected error occurred.');
                 })
                 .finally(() => {
+                    // This block runs at the very end, regardless of success or failure.
+                    // Its job is to clean up and reset the button to its original state.
                     generateBtn.textContent = 'Suggest Title with AI';
                     generateBtn.disabled = false;
                 });
             });
         });
-    </script>
-
-</body>
-</html>
+</script>
+{% endblock %}
