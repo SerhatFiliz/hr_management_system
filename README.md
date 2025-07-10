@@ -1,73 +1,142 @@
-HR Management System This project is a web application that enables HR employees to create job postings on behalf of their affiliated companies, manage candidate profiles who apply for these positions, and automate business processes through AI integration. The system is built on a secure authentication infrastructure and an authorization mechanism that ensures each user can only access their own company's data.
+# HR Core - HR Management System
 
-✨ Key Features
+HR Core is a web application designed for Human Resources (HR) employees to manage job postings and candidate profiles on behalf of their respective companies. The system provides a secure authentication mechanism, role-based authorization, and an optional AI-powered feature for generating job titles.
 
-    User Management: Secure registration and login system for HR employees.
-    
-    Dynamic Company Management: During registration, if the mentioned company does not exist in the database, it is created automatically; if it exists, it is associated with the existing one.
-    
-    Authorization: Each user can only view and manage the job postings and candidate profiles belonging to their own company.
-    
-    Job Posting Management: Create, Read, Update, and Delete (CRUD) operations for job postings on behalf of the company.
-    
-    Candidate Profile Management: Creation and listing of profiles for job applicants, including name, surname, email, and resume (PDF).
-    
-    Secure File Management: Resumes are accepted only in PDF format and stored securely on the server.
-    
-    AI Integration (Optional): After entering a job description, an AI API like Gemini can be called with a single click to automatically generate the most suitable job title.
-🛠️ Technologies Used
+---
 
-    The following technologies and libraries were used in the development of this project:
-    
-    Backend: Python 3.x, Django 5.x
-    
-    Database: PostgreSQL
-    
-    Artificial Intelligence API: Integration with modern LLM APIs such as Hugging Face, Groq, or Gemini.
-    
-    API Requests: requests library
-    
-    Frontend (Optional): Basic HTML, CSS, and JavaScript (AJAX)
-🚀 Setup and Installation
+## Features
 
-    You can follow the steps below to run the project on your local machine.
-    
-    1. Clone the Repository:
-    
-    git clone https://github.com/your-username/hr_management_system.git
-    cd hr_management_system
-    
-    2. Create and Activate a Virtual Environment:
-    
-    # Create the virtual environment
-    python -m venv venv
-    
-    # Activate on Windows
-    venv\Scripts\activate
-    
-    # Activate on macOS/Linux
-    source venv/bin/activate
-    
-    3. Install Required Packages:
-    All necessary libraries for the project are listed in the requirements.txt file.
-    
-    pip install -r requirements.txt
-    
-    4. Configure Database Settings:
-    
-    Create a database for your project in PostgreSQL.
-    
-    Copy the .env.example file in the project's root directory to .env.
-    
-    Fill in the fields in the .env file, such as the database name (DB_NAME), user (DB_USER), and password (DB_PASSWORD), with your own information.
-    
-    5. Create Database Tables:
-    The following command will create the database schema.
-    
-    python manage.py migrate
-    
-    6. Start the Development Server:
-    
-    python manage.py runserver
-    
-    Your project will now be running at http://127.0.0.1:8000/!
+- **User Management:** Secure registration and login functionality for HR employees.
+- **Company Association:** Each user is associated with a company. New companies are created automatically during registration if they don't already exist.
+- **Authorization:** Users can only view and manage job postings and candidates belonging to their own company.
+- **Job Posting Management (CRUD):**
+    - Create, list, update, and delete job postings.
+    - View a detail page for each job posting.
+- **Candidate Management (CRUD):**
+    - Create and update candidate profiles.
+    - Upload and view candidate resumes (PDF format only).
+- **Application System:**
+    - Link existing candidates to specific job postings to create an application record.
+    - Update the status of each application (e.g., Pending, Reviewed, Hired).
+- **AI-Powered Title Generation (Optional):** An "Suggest Title with AI" button on the job posting form sends the description to an external API (Hugging Face) to generate a concise title.
+
+---
+
+## Technology Stack
+
+- **Backend:** Python 3.x, Django 5.x
+- **Database:** PostgreSQL
+- **Frontend:** HTML5, CSS3, JavaScript, Bootstrap 5
+- **API Integration:** Python `requests` library for communicating with the Hugging Face Inference API.
+- **Environment Management:** `python-dotenv` for managing environment variables.
+
+---
+
+## Setup and Installation
+
+Follow these steps to set up and run the project locally.
+
+### 1. Prerequisites
+
+- Python 3.10 or higher
+- PostgreSQL installed and running
+- Git
+
+### 2. Clone the Repository
+
+```bash
+git clone [https://github.com/SerhatFiliz/hr_management_system.git](https://github.com/SerhatFiliz/hr_management_system.git)
+cd hr_management_system
+```
+
+### 3. Set Up the Virtual Environment
+
+It is highly recommended to use a virtual environment to manage project dependencies.
+
+```bash
+# Create a virtual environment
+python -m venv venv
+
+# Activate the virtual environment
+# On Windows:
+venv\Scripts\activate
+# On macOS/Linux:
+source venv/bin/activate
+```
+
+### 4. Install Dependencies
+
+Install all the required packages from the `requirements.txt` file.
+
+```bash
+pip install -r requirements.txt
+```
+
+### 5. Configure the Database
+
+- Create a new database in PostgreSQL. For example, you can name it `hrcore_db`.
+- Make sure the PostgreSQL server is running.
+
+### 6. Set Up Environment Variables
+
+The project uses a `.env` file to manage sensitive information like database credentials and API keys.
+
+- In the root directory of the project, create a new file named `.env`.
+- Copy the contents of `.env.example` (if provided) or add the following variables to your `.env` file and replace them with your actual credentials.
+
+```bash
+# .env file
+
+# --- DATABASE CONFIGURATION ---
+DB_NAME="hrcore_db"
+DB_USER="your_postgres_username"
+DB_PASSWORD="your_postgres_password"
+DB_HOST="localhost"
+DB_PORT="5432"
+
+# --- DJANGO SECRET KEY ---
+# Generate a new secret key. You can use an online generator.
+SECRET_KEY="your_django_secret_key"
+
+# --- HUGGING FACE API SETTINGS ---
+HUGGING_FACE_API_URL="[https://api-inference.huggingface.co/models/facebook/bart-large-cnn](https://api-inference.huggingface.co/models/facebook/bart-large-cnn)"
+HUGGING_FACE_API_KEY="your_hugging_face_api_key"
+```
+
+### 7. Run Database Migrations
+
+Apply the database schema to your newly created database.
+
+```bash
+python manage.py makemigrations
+python manage.py migrate
+```
+
+### 8. Create a Superuser
+
+Create an admin account to access the Django admin panel.
+
+```bash
+python manage.py createsuperuser
+```
+Follow the prompts to create your superuser account. After creating it, you will need to log into the admin panel (`/admin/`) to create an `Employee` profile for this user and associate it with a company.
+
+### 9. Run the Development Server
+
+You are now ready to run the project!
+
+```bash
+python manage.py runserver
+```
+The application will be available at `http://127.0.0.1:8000/`.
+
+---
+
+## Usage
+
+1.  **Register:** Navigate to the registration page to create a new HR employee account and associate it with a company.
+2.  **Login:** Use your credentials to log in.
+3.  **Dashboard:** After logging in, you will be redirected to the main dashboard where you can see lists of job postings and candidates for your company.
+4.  **Manage Jobs:** Use the "Create Job Posting" button to add new jobs. Use the "Edit" and "Delete" buttons in the list to manage existing ones.
+5.  **Manage Candidates:** Use the "Add Candidate" button to add new candidates and upload their resumes.
+6.  **Manage Applications:** Click on a job posting title to go to its detail page. From there, you can add existing candidates to the job to create an application and update the status of existing applications.
