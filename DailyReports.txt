@@ -60,10 +60,18 @@ API Configuration and Security: API credentials and URLs were securely configure
 Extensive API Debugging: A series of API connection and response errors (including 401 Unauthorized, 404 Not Found, and 500 Internal Server Error) were diagnosed and resolved to establish a stable connection with the AI service.
 Iterative Refinement of AI Logic: The code for sending requests and parsing the AI's response was refined multiple times to better handle errors and improve the quality of the generated title.
 
-----------------------09.07.2025-----------------------------------
+----------------------09.07.2025----------------------------------------------------------------------
+
+Frontend Overhaul and UI Standardization: A unified site-wide structure was established by creating a single base.html master template. All existing pages were then refactored to extend this base and utilize the Bootstrap 5 framework, resulting in a modern, responsive, and visually consistent user interface.
+Job-Candidate Relationship Established: The core logic of the application was implemented by creating the Application system. This included developing a dedicated detail page for each job posting, which now correctly lists only the candidates who have applied for that specific job.
+Application & Candidate Management Features Completed: Functionality was added to allow HR employees to associate candidates with jobs, update the status of applications (e.g., 'Reviewed'), and the full CRUD cycle for candidates was completed by making the "Edit" and "Delete" buttons operational.
 AI Response Logic Refined: To fix the issue of the AI returning long summary sentences, the backend logic was updated to process the API's response, split it into individual sentences, and use only the first sentence as the final suggested job title.
-Critical Security Vulnerability Patched: A major security vulnerability was identified and fixed, which previously allowed unauthenticated users to access data creation, update, and deletion pages by directly entering the URL. The LoginRequiredMixin was added to all relevant views, ensuring these pages are now properly protected and require user login.
-Application System Implemented: The Application model was created and integrated, establishing a crucial link between Candidates and JobPostings.
-Job Posting Detail Page Developed: A new detail page was created for each job posting, designed to show specific job information and a list of candidates who have applied for that position.
-Application Status Management Added: A system was implemented for updating the status of an application (e.g., from 'Pending' to 'Reviewed' or 'Interviewing'), allowing for basic workflow tracking.
-Candidate Editing Functionality Completed: The previously non-functional "Edit" button for candidates on the dashboard was made operational by creating the necessary view, URL, and template logic.
+Critical Security Vulnerability Patched: A major security vulnerability was identified and fixed. All data management views were secured with LoginRequiredMixin to ensure that unauthenticated users can no longer access them by directly entering a URL.
+
+
+----------------------10.07.2025----------------------------------------------------------------------
+Unit Tests Created: The project's test suite was finalized by adding comprehensive tests for the user registration logic in the accounts app and for all core functionalities (CRUD, security, file validation) in the portal app.
+'Created By' Info Added to Dashboard: The dashboard was updated to display the username of the employee who created each job posting, fulfilling a project requirement.
+Candidate Deletion Feature Added: The full CRUD (Create, Read, Update, Delete) cycle for candidate management was completed by implementing the functionality for users to delete candidate profiles.
+README Updated: A comprehensive README.md file was created, detailing the project's features, technology stack, and step-by-step setup instructions for new developers.
+Requirements Updated: The requirements.txt file was generated to lock down all project dependencies and their specific versions, ensuring a reproducible environment.

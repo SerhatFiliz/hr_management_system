@@ -7,6 +7,7 @@ from .views import (
     JobPostingDeleteView,
     CandidateCreateView,
     CandidateUpdateView,
+    CandidateDeleteView,
     JobPostingDetailView,
     ApplicationCreateView,
     ApplicationUpdateView,
@@ -40,6 +41,9 @@ urlpatterns = [
     # Example URL: /portal/candidates/3/edit/
     path('candidates/<int:pk>/edit/', CandidateUpdateView.as_view(), name='candidate-update'),
 
+    # Path for deleting an existing candidate profile.
+    # Example URL: /portal/candidates/4/delete/
+    path('candidates/<int:pk>/delete/', CandidateDeleteView.as_view(), name='candidate-delete'),
 
     # Path for viewing a single job posting's details.
     # <int:pk> captures the job's ID from the URL and passes it to the view.

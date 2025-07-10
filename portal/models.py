@@ -3,6 +3,7 @@ from django.contrib.auth.models import User # Required for User relationship (Em
 from accounts.models import Company # Required for Company relationships (Employee, JobPosting, Candidate)
 from django.core.validators import FileExtensionValidator, EmailValidator # Required for validation (Candidate)
 
+
 class Employee(models.Model):
     """
     It links an internal User (login capability) to a specific Company.

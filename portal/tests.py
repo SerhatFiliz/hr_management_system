@@ -8,6 +8,7 @@ from django.core.files.base import ContentFile
 from accounts.models import Company
 from .models import Employee, JobPosting, Candidate, Application
 
+
 # All test classes must inherit from django.test.TestCase.
 # This provides a rich set of tools and sets up a clean test database for each run.
 class PortalViewsTestCase(TestCase):
@@ -68,6 +69,7 @@ class PortalViewsTestCase(TestCase):
         # This URL needs a keyword argument 'pk' to be built correctly.
         self.job_update_url_b = reverse('job-update', kwargs={'pk': self.job_posting_b.pk})
 
+#-------------------------------------------------------------------------------------------------------------------------------
 
     # Test method names MUST start with 'test_'. Django's test runner
     # looks for methods with this prefix to know which ones to run.
@@ -98,6 +100,8 @@ class PortalViewsTestCase(TestCase):
         expected_redirect_url = f"{self.login_url}?next={self.dashboard_url}"
         self.assertRedirects(response, expected_redirect_url, msg_prefix="Should redirect to the login page.")
 
+#-------------------------------------------------------------------------------------------------------------------------------
+
     def test_dashboard_view_authenticated_user(self):
         """
         Test that an authenticated (logged in) user can successfully
@@ -127,6 +131,8 @@ class PortalViewsTestCase(TestCase):
         #   - "Company A": The specific text we are looking for.
         self.assertContains(response, "Company A", msg_prefix="The company name should be displayed.")
 
+#-------------------------------------------------------------------------------------------------------------------------------
+
     def test_user_cannot_edit_other_company_job_posting(self):
         """
         SECURITY TEST: Ensures a user from Company A cannot access the edit page
@@ -143,6 +149,8 @@ class PortalViewsTestCase(TestCase):
         # method filters the results, so from User A's perspective,
         # Company B's job posting "does not exist". This is the correct behavior.
         self.assertEqual(response.status_code, 404, "Should return 404 Not Found for unauthorized access.")
+
+#-------------------------------------------------------------------------------------------------------------------------------
 
     def test_job_posting_creation(self):
         """
@@ -176,6 +184,8 @@ class PortalViewsTestCase(TestCase):
         self.assertEqual(new_job.company, self.company_a, "The new job should belong to Company A.")
         self.assertEqual(new_job.created_by, self.employee_a, "The creator should be Employee A.")
 
+#-------------------------------------------------------------------------------------------------------------------------------
+
     def test_candidate_creation(self):
         """
         Tests the successful creation of a new candidate, now including a file upload.
@@ -207,6 +217,8 @@ class PortalViewsTestCase(TestCase):
         #   - new_candidate.resume.name: The path saved in the database for the file.
         self.assertTrue(new_candidate.resume.name, "A resume file path should be saved to the candidate.")
 
+#-------------------------------------------------------------------------------------------------------------------------------
+
     def test_application_creation(self):
         """
         Tests that a user from Company B can successfully create an application
@@ -223,7 +235,7 @@ class PortalViewsTestCase(TestCase):
             created_by=self.employee_b
         )
         
-        # CORRECTED FILE HANDLING: We must manually save the file content
+        # We must manually save the file content
         # to the field when creating an object directly in a test (not via a form).
         # ContentFile creates a file-like object from a string or bytes.
         candidate_b.resume.save("resume.pdf", ContentFile(self.dummy_pdf_content))
@@ -243,3 +255,47 @@ class PortalViewsTestCase(TestCase):
         new_application = Application.objects.latest('application_date')
         self.assertEqual(new_application.candidate, candidate_b)
         self.assertEqual(new_application.job_posting, self.job_posting_b)
+
+#-------------------------------------------------------------------------------------------------------------------------------
+
+def test_candidate_creation_fails_with_invalid_file_type(self):
+    """
+    Tests that the form validation fails if a user tries to upload
+    a non-PDF file for the resume, thanks to our FileExtensionValidator.
+    """
+    # Log in as a user to be able to access the form page.
+    self.client.login(username='user_a', password='password123')
+
+    # Create a dummy text file instead of a PDF to simulate an invalid upload.
+    dummy_text_file = SimpleUploadedFile(
+        "resume.txt",           # The filename.
+        b"This is not a PDF.", # The file content as bytes.
+        "text/plain"            # The content type.
+    )
+
+    # Prepare the form data with the invalid file.
+    post_data = {
+        'first_name': 'Invalid',
+        'last_name': 'File',
+        'email': 'invalid.file@example.com',
+        'resume': dummy_text_file
+    }
+
+    # Check the number of candidates before the action.
+    initial_candidate_count = Candidate.objects.count()
+    # Simulate posting the form with the invalid file.
+    response = self.client.post(reverse('candidate-create'), post_data, format='multipart')
+
+    # --- Assertions ---
+
+    # 1. Check that NO new candidate was created in the database.
+    self.assertEqual(Candidate.objects.count(), initial_candidate_count, "No candidate should be created with an invalid file type.")
+
+    # 2. Check that the server responded with 200 OK. This means it did NOT redirect.
+    # Instead, it re-rendered the form page to show the validation error to the user.
+    self.assertEqual(response.status_code, 200, "Should re-render the form page on validation error.")
+
+    # 3. Check that the specific validation error message from our validator
+    # is present in the HTML content of the response.
+    self.assertContains(response, "Allowed extensions are: pdf", msg_prefix="The PDF validation error message should be displayed.")
+    

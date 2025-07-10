@@ -232,7 +232,35 @@ class CandidateUpdateView(LoginRequiredMixin, UpdateView):
         """
         messages.success(self.request, f"Candidate profile for {self.object.first_name} {self.object.last_name} has been updated.")
         return super().form_valid(form)
+    
+#-----------------------------------------------------------------------------------------------------------
+class CandidateDeleteView(LoginRequiredMixin, DeleteView):
+    """
+    Provides a confirmation page for deleting a Candidate profile.
+    """
+    # model: This view works with the Candidate model.
+    model = Candidate
+    
+    # success_url: Redirects back to the dashboard after a successful deletion.
+    success_url = reverse_lazy('dashboard')
+    
+    # template_name: The HTML file that will be used for the confirmation page.
+    template_name = 'portal/candidate_confirm_delete.html'
 
+    def get_queryset(self):
+        """
+        SECURITY FEATURE: Ensures a user can ONLY delete candidates
+        that belong to their own company.
+        """
+        queryset = super().get_queryset()
+        return queryset.filter(company=self.request.user.employee.company)
+
+    def form_valid(self, form):
+        """
+        Adds a success message when the form is successfully submitted (deletion is confirmed).
+        """
+        messages.success(self.request, f"Candidate profile for {self.object.first_name} {self.object.last_name} has been deleted.")
+        return super().form_valid(form)
 
 #-----------------------------------------------------------------------------------------------------------
 class JobPostingDetailView(LoginRequiredMixin, DetailView):

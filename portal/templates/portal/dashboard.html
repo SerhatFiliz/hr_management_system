@@ -1,5 +1,3 @@
-{# templates/portal/dashboard.html #}
-
 {# This template inherits its main structure (like the navbar) from base.html #}
 {% extends "base.html" %}
 
@@ -34,6 +32,8 @@
                                 <th scope="col">Title</th>
                                 <th scope="col">Status</th>
                                 <th scope="col">Created At</th>
+                                <!-- NEW: Added header for the creator -->
+                                <th scope="col">Created By</th>
                                 <th scope="col" class="text-end">Actions</th>
                             </tr>
                         </thead>
@@ -56,6 +56,8 @@
                                     </td>
                                     {# The 'date' filter formats the datetime object for better readability. #}
                                     <td>{{ job.created_at|date:"d M, Y" }}</td>
+                                    <!-- NEW: Display the username of the employee who created the posting -->
+                                    <td>{{ job.created_by.user.username }}</td>
                                     <td class="text-end">
                                         {# Dynamic URLs for the edit and delete actions for this specific job. #}
                                         <a href="{% url 'job-update' job.pk %}" class="btn btn-sm btn-outline-primary">Edit</a>
@@ -100,8 +102,10 @@
                                         <a href="{{ candidate.resume.url }}" target="_blank" class="btn btn-sm btn-outline-info">View CV</a>
                                     </td>
                                     <td class="text-end">
-                                        <!-- UPDATED: This link now points to the candidate update page -->
+                                        <!-- This link now points to the candidate update page -->
                                         <a href="{% url 'candidate-update' pk=candidate.pk %}" class="btn btn-sm btn-outline-primary">Edit</a>
+                                        <!-- Link to the delete confirmation page for this specific candidate -->
+                                        <a href="{% url 'candidate-delete' pk=candidate.pk %}" class="btn btn-sm btn-outline-danger">Delete</a>
                                     </td>
                                 </tr>
                             {% endfor %}

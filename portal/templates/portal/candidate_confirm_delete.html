@@ -1,0 +1,32 @@
+{# templates/portal/candidate_confirm_delete.html #}
+
+{% extends "base.html" %}
+
+{% block title %}Confirm Candidate Deletion - HR Core{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card shadow-sm text-center">
+            <div class="card-body p-5">
+                <h2 class="card-title mb-3">Confirm Deletion</h2>
+                
+                {# 'object' is the default name DeleteView sends for the item to be deleted. #}
+                <p class="lead">Are you sure you want to delete the candidate profile for:</p>
+                <h4 class="mb-4">"{{ object.first_name }} {{ object.last_name }}"</h4>
+
+                <p class="text-muted">This action will permanently remove the candidate's profile and cannot be undone.</p>
+
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
+                        <button type="submit" class="btn btn-danger btn-lg">Yes, Delete</button>
+                        <a href="{% url 'dashboard' %}" class="btn btn-secondary btn-lg">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
