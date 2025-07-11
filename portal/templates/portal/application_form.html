@@ -25,7 +25,7 @@
                     </div>
 
                     <p class="text-center mt-3">
-                        {# FIXED: The link now correctly uses the 'job_posting' object from the context. #}
+                        {# The link now correctly uses the 'job_posting' object from the context. #}
                         <a href="{% url 'job-detail' pk=job_posting.pk %}" class="text-muted">Cancel</a>
                     </p>
                 </form>

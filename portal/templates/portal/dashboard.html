@@ -1,18 +1,12 @@
-{# This template inherits its main structure (like the navbar) from base.html #}
 {% extends "base.html" %}
 
-{# This block overrides the default title in base.html with a page-specific title. #}
 {% block title %}Dashboard - HR Core{% endblock %}
 
-{# This is the main content block that will be injected into the 'content' block of base.html. #}
 {% block content %}
 <div class="container mt-4">
     {# --- Page Header --- #}
-    {# This section displays the main page title and action buttons. #}
     <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
-        {# Display the company name. If it's not available, show 'My Company' as a fallback. #}
         <h1 class="h2">{{ company.name|default:"My Company" }} Dashboard</h1>
-        {# Container for action buttons, aligned to the right. #}
         <div class="d-flex gap-2">
             <a href="{% url 'candidate-create' %}" class="btn btn-secondary">Add Candidate</a>
             <a href="{% url 'job-create' %}" class="btn btn-primary">Create Job Posting</a>
@@ -23,7 +17,6 @@
     <h2 class="h4 mb-3">Job Postings</h2>
     <div class="card shadow-sm mb-4">
         <div class="card-body">
-            {# Check if the 'job_postings' list sent from the view is not empty. #}
             {% if job_postings %}
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
@@ -32,34 +25,26 @@
                                 <th scope="col">Title</th>
                                 <th scope="col">Status</th>
                                 <th scope="col">Created At</th>
-                                <!-- NEW: Added header for the creator -->
                                 <th scope="col">Created By</th>
                                 <th scope="col" class="text-end">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {# Loop through each 'job' object in the 'job_postings' list. #}
                             {% for job in job_postings %}
                                 <tr>
-                                    {# The job title is now a link to its detail page. #}
                                     <td>
-                                        {# The 'url' tag dynamically creates the URL for the job's detail page using its primary key (pk). #}
                                         <a href="{% url 'job-detail' job.pk %}">{{ job.title }}</a>
                                     </td>
                                     <td>
-                                        {# Display a green 'Active' badge or a gray 'Inactive' badge based on the job's status. #}
                                         {% if job.is_active %}
                                             <span class="badge bg-success">Active</span>
                                         {% else %}
                                             <span class="badge bg-secondary">Inactive</span>
                                         {% endif %}
                                     </td>
-                                    {# The 'date' filter formats the datetime object for better readability. #}
                                     <td>{{ job.created_at|date:"d M, Y" }}</td>
-                                    <!-- NEW: Display the username of the employee who created the posting -->
                                     <td>{{ job.created_by.user.username }}</td>
                                     <td class="text-end">
-                                        {# Dynamic URLs for the edit and delete actions for this specific job. #}
                                         <a href="{% url 'job-update' job.pk %}" class="btn btn-sm btn-outline-primary">Edit</a>
                                         <a href="{% url 'job-delete' job.pk %}" class="btn btn-sm btn-outline-danger">Delete</a>
                                     </td>
@@ -69,7 +54,6 @@
                     </table>
                 </div>
             {% else %}
-                {# If the 'job_postings' list is empty, display this message instead of the table. #}
                 <p class="text-center text-muted mt-3">No job postings found. Create one to get started!</p>
             {% endif %}
         </div>
@@ -79,7 +63,6 @@
     <h2 class="h4 mb-3">Candidates</h2>
     <div class="card shadow-sm">
         <div class="card-body">
-            {# Check if the 'candidates' list sent from the view is not empty. #}
             {% if candidates %}
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
@@ -88,23 +71,29 @@
                                 <th scope="col">Name</th>
                                 <th scope="col">Email</th>
                                 <th scope="col">Resume</th>
+                                <th scope="col">Added At</th>      
+                                <th scope="col">Added By</th>       
                                 <th scope="col" class="text-end">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {# Loop through each 'candidate' object in the 'candidates' list. #}
                             {% for candidate in candidates %}
                                 <tr>
                                     <td>{{ candidate.first_name }} {{ candidate.last_name }}</td>
                                     <td>{{ candidate.email }}</td>
                                     <td>
-                                        {# 'candidate.resume.url' provides the direct web path to the uploaded file. #}
-                                        <a href="{{ candidate.resume.url }}" target="_blank" class="btn btn-sm btn-outline-info">View CV</a>
+                                        {% if candidate.resume %}
+                                            <a href="{{ candidate.resume.url }}" target="_blank" class="btn btn-sm btn-outline-info">View CV</a>
+                                        {% else %}
+                                            <span class="text-muted small">No CV</span>
+                                        {% endif %}
                                     </td>
+                                    {# Display the creation date of the candidate profile. #}
+                                    <td>{{ candidate.created_at|date:"d M, Y" }}</td>
+                                    {# Display the username of the employee who added this candidate. #}
+                                    <td>{{ candidate.created_by.user.username }}</td>
                                     <td class="text-end">
-                                        <!-- This link now points to the candidate update page -->
                                         <a href="{% url 'candidate-update' pk=candidate.pk %}" class="btn btn-sm btn-outline-primary">Edit</a>
-                                        <!-- Link to the delete confirmation page for this specific candidate -->
                                         <a href="{% url 'candidate-delete' pk=candidate.pk %}" class="btn btn-sm btn-outline-danger">Delete</a>
                                     </td>
                                 </tr>
@@ -113,10 +102,10 @@
                     </table>
                 </div>
             {% else %}
-                {# If the 'candidates' list is empty, display this message. #}
                 <p class="text-center text-muted mt-3">No candidates found for your company.</p>
             {% endif %}
         </div>
     </div>
 </div>
 {% endblock %}
+    

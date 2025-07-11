@@ -61,7 +61,6 @@ Extensive API Debugging: A series of API connection and response errors (includi
 Iterative Refinement of AI Logic: The code for sending requests and parsing the AI's response was refined multiple times to better handle errors and improve the quality of the generated title.
 
 ----------------------09.07.2025----------------------------------------------------------------------
-
 Frontend Overhaul and UI Standardization: A unified site-wide structure was established by creating a single base.html master template. All existing pages were then refactored to extend this base and utilize the Bootstrap 5 framework, resulting in a modern, responsive, and visually consistent user interface.
 Job-Candidate Relationship Established: The core logic of the application was implemented by creating the Application system. This included developing a dedicated detail page for each job posting, which now correctly lists only the candidates who have applied for that specific job.
 Application & Candidate Management Features Completed: Functionality was added to allow HR employees to associate candidates with jobs, update the status of applications (e.g., 'Reviewed'), and the full CRUD cycle for candidates was completed by making the "Edit" and "Delete" buttons operational.
@@ -75,3 +74,7 @@ Unit Tests Created: The project's test suite was finalized by adding comprehensi
 Candidate Deletion Feature Added: The full CRUD (Create, Read, Update, Delete) cycle for candidate management was completed by implementing the functionality for users to delete candidate profiles.
 README Updated: A comprehensive README.md file was created, detailing the project's features, technology stack, and step-by-step setup instructions for new developers.
 Requirements Updated: The requirements.txt file was generated to lock down all project dependencies and their specific versions, ensuring a reproducible environment.
+
+-------------------11.07.2025-------------------------------------------------------------------------
+Last changes and final release.
+Control and test.
