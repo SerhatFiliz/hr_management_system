@@ -41,6 +41,11 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'accounts',
     'portal',
+
+    'crispy_forms',  # This is the main application for the django-crispy-forms library.
+                     # It must be registered here so Django knows it exists.
+    'crispy_bootstrap5',   # This app provides the Bootstrap 5 template pack for crispy-forms.
+                           # It allows the |crispy filter to generate HTML compatible with Bootstrap 5.
 ]
 
 MIDDLEWARE = [
@@ -146,3 +151,14 @@ LOGIN_URL = '/accounts/login/'
 # The second argument (e.g., 'default_url') is a fallback value if the variable is not found.
 HUGGING_FACE_API_URL = os.getenv("HUGGING_FACE_API_URL")
 HUGGING_FACE_API_KEY = os.getenv("HUGGING_FACE_API_KEY")
+
+# --- Crispy Forms Settings ---
+# These settings are typically placed at the bottom of the settings.py file.
+
+# This setting tells crispy-forms which template packs are available for use.
+# We are only allowing 'bootstrap5' in this project.
+CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
+
+# This setting defines the default template pack that crispy-forms will use
+# whenever you use the |crispy filter in your templates.
+CRISPY_TEMPLATE_PACK = "bootstrap5"

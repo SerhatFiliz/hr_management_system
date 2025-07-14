@@ -15,5 +15,5 @@ urlpatterns = [
     # It uses Django's built-in LogoutView to handle terminating the user's session.
     # - 'next_page': Specifies the name of the URL to redirect to after a successful logout.
     # - 'name': A unique name for this URL path.
-    path('logout/', auth_views.LogoutView.as_view(next_page='login'), name='logout'),
+     path('logout/', auth_views.LogoutView.as_view(next_page='login'), name='logout'),
 ]
