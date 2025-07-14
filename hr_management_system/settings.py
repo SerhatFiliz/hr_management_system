@@ -162,3 +162,21 @@ CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 # This setting defines the default template pack that crispy-forms will use
 # whenever you use the |crispy filter in your templates.
 CRISPY_TEMPLATE_PACK = "bootstrap5"
+
+# --- Celery Configuration ---
+# This setting specifies the location Celery will use to store tasks and messages.
+# 'redis://localhost:6379/0' points to the Redis server on the local machine.
+# /0 is the database number to use (Redis supports multiple databases).
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+
+# This setting specifies where task results will be stored.
+# This is useful when you want to check the status or result of a task later.
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+
+# Enables serialization of tasks in JSON format.
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+
+# Sets Celery's timezone to match Django's timezone.
+CELERY_TIMEZONE = TIME_ZONE

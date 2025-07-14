@@ -78,3 +78,14 @@ Requirements Updated: The requirements.txt file was generated to lock down all p
 -------------------11.07.2025-------------------------------------------------------------------------
 Last changes and final release.
 Control and test.
+
+----------------14.07.2025---------------------------------------------------------------------------
+Logout Error (Critical): Fixed HTTP 405 error by converting the logout link to a POST request form.
+Registration Error (Critical): Resolved silent form validation failures by integrating django-crispy-forms to display errors.
+UI Enhancements: Restyled navbar buttons using Bootstrap for a better user experience.
+Background Task Infrastructure (Celery & Redis) Setup:
+Successfully integrated Celery and Redis to enable asynchronous background tasks.
+Configured the project (settings.py, celery.py) and created an initial test task.
+Verified the complete setup by successfully running a test task via the Django shell.
+
+
