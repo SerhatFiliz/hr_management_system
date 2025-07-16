@@ -1,7 +1,7 @@
 import json  # For working with JSON data format (used in our API view).
 import re    # For using regular expressions (used to split the AI's response).
 import requests # For making HTTP requests to external services (like the Hugging Face API).
-
+import os  # For accessing environment variables (like API keys).
 # --- Django Core Libraries ---
 from django.conf import settings  # To access variables from our project's settings.py file (like API keys).
 from django.contrib.auth.decorators import login_required # A function decorator to protect views by requiring login.

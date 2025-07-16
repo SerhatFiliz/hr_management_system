@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+from celery.schedules import crontab
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -180,3 +181,21 @@ CELERY_RESULT_SERIALIZER = 'json'
 
 # Sets Celery's timezone to match Django's timezone.
 CELERY_TIMEZONE = TIME_ZONE
+
+# --- Celery Beat Scheduler Configuration ---
+# This section defines all the periodic tasks that Celery Beat should run.
+CELERY_BEAT_SCHEDULE = {
+    # We give our periodic task a unique name.
+    'deactivate-expired-postings-every-day': {
+        # This is the path to the task function we want to run.
+        # We will create this task in the next step.
+        'task': 'portal.tasks.deactivate_expired_postings',
+        
+        # This defines how often the task should run.
+        # crontab(hour=4, minute=0) means "run every day at 4:00 AM".
+        'schedule': crontab(hour=6, minute=0),
+        
+        # You can pass arguments to the task if needed, but we don't need any for this one.
+        # 'args': (16, 16), 
+    },
+}

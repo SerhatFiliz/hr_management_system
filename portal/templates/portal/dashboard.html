@@ -26,6 +26,7 @@
                                 <th scope="col">Status</th>
                                 <th scope="col">Created At</th>
                                 <th scope="col">Created By</th>
+                                <th scope="col">Closing Date</th>
                                 <th scope="col" class="text-end">Actions</th>
                             </tr>
                         </thead>
@@ -44,6 +45,17 @@
                                     </td>
                                     <td>{{ job.created_at|date:"d M, Y" }}</td>
                                     <td>{{ job.created_by.user.username }}</td>
+                                    <td>
+                                    {# Check if a closing date exists for this job posting #}
+                                    {% if job.closing_date %}
+                                        {# If it exists, format it nicely. #}
+                                        {{ job.closing_date|date:"d M Y, H:i" }}
+                                    {% else %}
+                                        {# If not, display a placeholder text. #}
+                                        <span class="text-muted">Not set</span>
+                                    {% endif %}
+                                    </td>
+                                    {# Actions column with Edit and Delete buttons #}   
                                     <td class="text-end">
                                         <a href="{% url 'job-update' job.pk %}" class="btn btn-sm btn-outline-primary">Edit</a>
                                         <a href="{% url 'job-delete' job.pk %}" class="btn btn-sm btn-outline-danger">Delete</a>

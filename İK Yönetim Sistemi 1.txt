@@ -102,8 +102,6 @@ Gereksinim dosyası (requirements.txt).
 Zaman Çizelgesi:
 Önerilen süre: 2-3 hafta (tam zamanlı çalışma varsayımıyla).
 
-
-Bu projeye aşağıdaki gibi isterleri de ekleyebilir misin?
  
 1 - Celery kullanarak iş ilanlarının kapanış tarihleri her günün sabahında kontrol edilip iş ilanları pasife çekilmelidir. Bunun için celery ile arka plan taskları nasıl oluşturulur bunu öğrenmen gerekli. 
  

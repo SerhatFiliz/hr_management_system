@@ -1,4 +1,47 @@
+{# This template also inherits its structure from base.html #}
+{% extends "base.html" %}
+{# Load the crispy-forms tags, just like in the registration template. #}
+{% load crispy_forms_tags %}
 
+{# Override the page title. #}
+{% block title %}Login - HR Core{% endblock %}
+
+{# Main content block for the login page. #}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h2 class="card-title text-center mb-4">Login to Your Account</h2>
+
+                <form method="post">
+                    {% csrf_token %} <!-- Security token is always required for POST forms. -->
+                    
+                    <!-- We apply the |crispy filter to Django's default AuthenticationForm.
+                         It will automatically style the username and password fields. -->
+                    {{ form|crispy }}
+                    
+                    <div class="d-grid mt-4">
+                        <button type="submit" class="btn btn-primary">Login</button>
+                    </div>
+
+                    <p class="text-center mt-3">
+                        Don't have an account? <a href="{% url 'register' %}">Register here</a>
+                    </p>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{# ------------------------------------------------------------------------------------------------------------------------- #}
+
+{% comment %}
+{% This is a commented-out section that shows how to manually render form fields without crispy-forms. %}
+{% This is useful if you want more control over the HTML structure or styling. %}
+
+{% comment %}
 {% extends "base.html" %}
 
 {% block title %}Login - HR Core{% endblock %}
@@ -57,3 +100,6 @@
     </div>
 </div>
 {% endblock %}
+{% endcomment %}
+
+

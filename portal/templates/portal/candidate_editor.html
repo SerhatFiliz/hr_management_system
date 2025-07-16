@@ -1,3 +1,34 @@
+{# This template is for creating or editing a candidate #}
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+
+{% block title %}Candidate Editor{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h2 class="card-title text-center mb-4">
+                    {% if form.instance.pk %}Edit Candidate{% else %}Add New Candidate{% endif %}
+                </h2>
+                <!-- 'enctype="multipart/form-data"' is crucial for file uploads (like resumes) to work. -->
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    {{ form|crispy }}
+                    <div class="d-grid mt-4">
+                        <button type="submit" class="btn btn-primary">Save Candidate</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{# ------------------------------------------------------------------------------------------------------------------------- #}
+
+{%comment%}
 {% extends "base.html" %}
 
 {% block title %}Candidate Editor - HR Core{% endblock %}
@@ -52,3 +83,4 @@
     </div>
 </div>
 {% endblock %}
+{%endcomment%}

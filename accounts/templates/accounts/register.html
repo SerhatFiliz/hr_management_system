@@ -1,3 +1,49 @@
+
+{# This template inherits its basic structure (navbar, footer, etc.) from base.html #}
+{% extends "base.html" %}
+{# This loads the template tags for the 'django-crispy-forms' library. It's required to use the |crispy filter. #}
+{% load crispy_forms_tags %}
+
+{# This block overrides the default title defined in base.html #}
+{% block title %}Register - HR Core{% endblock %}
+
+{# This is the main content block that will be injected into the 'content' block of base.html #}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h2 class="card-title text-center mb-4">Create an Account</h2>
+                
+                <!-- The form is now much cleaner and easier to maintain. -->
+                <form method="post">
+                    {% csrf_token %} <!-- Security token against Cross-Site Request Forgery attacks. -->
+                    
+                    <!-- This is the magic of crispy-forms. The |crispy filter takes the entire
+                         Django form object and renders it with beautiful Bootstrap 5 markup,
+                         including labels, help text, and validation errors. -->
+                    {{ form|crispy }}
+                    
+                    <div class="d-grid mt-4">
+                        <button type="submit" class="btn btn-primary">Register</button>
+                    </div>
+
+                    <p class="text-center mt-3">
+                        Already have an account? <a href="{% url 'login' %}">Login here</a>
+                    </p>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{# ------------------------------------------------------------------------------------------------------------------------- #}
+
+{% comment %}
+{% This is a commented-out section that shows how to manually render form fields without crispy-forms. %}
+{% This is useful if you want more control over the HTML structure or styling. %}
+{% comment %}
 {% extends "base.html" %}
 {% load crispy_forms_tags %} <!-- Load crispy_forms_tags to use the |crispy filter -->
 
@@ -85,3 +131,5 @@
     </div>
 </div>
 {% endblock %}
+{% endcomment %}
+

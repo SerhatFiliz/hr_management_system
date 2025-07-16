@@ -1,3 +1,39 @@
+{# This template is for updating the status of an application #}
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+
+{% block title %}Update Application Status{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                {# The application object is passed from the view #}
+                <h2 class="card-title text-center mb-4">Update Status for {{ application.candidate.name }}</h2>
+                <form method="post">
+                    {% csrf_token %}
+                    <p>Update the application status for the job: "{{ application.job.title }}"</p>
+                    {{ form|crispy }}
+                    <div class="d-grid mt-4">
+                        <button type="submit" class="btn btn-primary">Update Status</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{# ------------------------------------------------------------------------------------------------------------------------- #}
+
+{%comment%}
+{% extends "base.html" %}
+
+{% block title %}Register - HR Core{% endblock %}
+
+{% block content %}
+{%comment%}
 {% extends "base.html" %}
 
 {# This block sets the page-specific title. #}
@@ -44,3 +80,6 @@
     </div>
 </div>
 {% endblock %}
+{%endcomment%}
+
+

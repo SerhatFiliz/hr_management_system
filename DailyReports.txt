@@ -87,5 +87,15 @@ Background Task Infrastructure (Celery & Redis) Setup:
 Successfully integrated Celery and Redis to enable asynchronous background tasks.
 Configured the project (settings.py, celery.py) and created an initial test task.
 Verified the complete setup by successfully running a test task via the Django shell.
+hr_management_system/settings.py 
+hr_management_system/celery.py
+hr_management_system/__init__.py
+portal/tasks.py
 
+----------------16.07.2025---------------------------------------------------------------------------
+Forms Refactored with Crispy Forms: All forms in both accounts and portal apps were updated to use django-crispy-forms for consistent Bootstrap styling and improved maintainability.
+Templates Simplified: All form templates (register.html, login.html, job_posting_editor.html, etc.) were simplified by replacing manual HTML with the {{ form|crispy }} filter, resulting in cleaner and more readable code.
+Automatic Status Logic Implemented: The JobPosting model's save() method was overridden to automatically manage the is_active status based on the closing_date, removing the need for manual user input.
+Periodic Task (Celery Beat) Configured: A scheduled task was created using CELERY_BEAT_SCHEDULE to automatically run a function (deactivate_expired_postings) at regular intervals.
+Celery Beat System Verified: The full Celery Beat and Worker pipeline was successfully tested. It was confirmed that the scheduler automatically triggers the task and the worker executes it, correctly updating the status of expired job postings in the database.
 
