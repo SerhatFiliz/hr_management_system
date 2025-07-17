@@ -99,3 +99,10 @@ Automatic Status Logic Implemented: The JobPosting model's save() method was ove
 Periodic Task (Celery Beat) Configured: A scheduled task was created using CELERY_BEAT_SCHEDULE to automatically run a function (deactivate_expired_postings) at regular intervals.
 Celery Beat System Verified: The full Celery Beat and Worker pipeline was successfully tested. It was confirmed that the scheduler automatically triggers the task and the worker executes it, correctly updating the status of expired job postings in the database.
 
+-------------17.07.2025-----------------------------------------------------------------------------
+New Branch: Created feature/advanced-cv-parsing to start the new module.
+New Dependency: Installed PyPDF2 for PDF text extraction.
+UI Created: Developed bulk_cv_upload.html for multiple file uploads.
+Backend Implemented: Created BulkCVUploadView and its URL to receive files.
+Celery Task Created: Developed a new background task, process_single_cv, to handle individual file processing.
+Asynchronous Flow Verified: Confirmed that the view successfully delegates uploaded files to the Celery task, which then extracts the text from the PDFs in the background.

@@ -1,4 +1,6 @@
 from django.urls import path
+from . import views
+
 # Import all the views we have created
 from .views import (
     DashboardView,
@@ -12,6 +14,7 @@ from .views import (
     ApplicationCreateView,
     ApplicationUpdateView,
     generate_job_title_view,
+    BulkCVUploadView
 )
 
 urlpatterns = [
@@ -63,4 +66,10 @@ urlpatterns = [
     # Path for generating a job title using an external API.
     # This URL will be used to send a request to the API to generate a job title.
     path('api/generate-title/', generate_job_title_view, name='api-generate-title'),
+
+    # This line creates a new URL endpoint for our bulk upload feature.
+    # 'candidates/bulk-upload/' is the URL path.
+    # 'views.BulkCVUploadView.as_view()' tells Django to use the class-based view we are about to create.
+    # 'name='candidate-bulk-upload'' gives this URL a unique name so we can refer to it in our templates.
+    path('candidates/bulk-upload/', BulkCVUploadView.as_view(), name='candidate-bulk-upload'),
 ]

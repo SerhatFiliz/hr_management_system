@@ -3,6 +3,7 @@ import re    # For using regular expressions (used to split the AI's response).
 import requests # For making HTTP requests to external services (like the Hugging Face API).
 import os  # For accessing environment variables (like API keys).
 # --- Django Core Libraries ---
+from django.views import View # The base class for creating class-based views.
 from django.conf import settings  # To access variables from our project's settings.py file (like API keys).
 from django.contrib.auth.decorators import login_required # A function decorator to protect views by requiring login.
 from django.contrib.auth.mixins import LoginRequiredMixin # A class mixin to protect views by requiring login.
@@ -12,6 +13,9 @@ from django.urls import reverse_lazy # To look up URL paths by their given name.
 from django.views.decorators.csrf import csrf_exempt # To bypass security checks for our internal API view.
 from django.views.generic import TemplateView, CreateView, UpdateView, DeleteView, DetailView # Django's built-in "factories" for common tasks.
 from django.contrib import messages # To show messages to the user (like success or error notifications).
+
+from .tasks import process_single_cv # We import our new Celery task.
+import base64 # We need this to encode the file content.
 
 # --- Local Application Imports ---
 # Imports from other files within this 'portal' app. The '.' means 'from the same directory'.
@@ -505,3 +509,66 @@ class ApplicationUpdateView(LoginRequiredMixin, UpdateView):
         """
         messages.success(self.request, f"Status for {self.object.candidate.first_name}'s application has been updated.")
         return super().form_valid(form)
+
+#-----------------------------------------------------------------------------------------------------------
+
+# We use a class-based view (CBV) for better organization of GET and POST logic.
+# LoginRequiredMixin is a security feature. It acts as a guard, ensuring that
+# only logged-in users can access this page. If a non-logged-in user tries to
+# access it, they will be redirected to the login page.
+class BulkCVUploadView(LoginRequiredMixin, View):
+    """
+    Handles the bulk CV upload page.
+    - The get() method displays the upload form.
+    - The post() method handles the submitted files and delegates them to Celery.
+    """
+    
+    def get(self, request, *args, **kwargs):
+        """
+        This method is called when a user visits the page with a GET request.
+        Its only job is to render and display the 'bulk_cv_upload.html' template.
+        """
+        return render(request, 'portal/bulk_cv_upload.html')
+
+    def post(self, request, *args, **kwargs):
+        """
+        This method is called when the user submits the form (a POST request).
+        This is where the main logic happens.
+        """
+        # 'request.FILES' is a dictionary-like object that holds all uploaded files.
+        # We use .getlist('cv_files') to get all files uploaded with the name 'cv_files'
+        # from our HTML form's <input type="file" name="cv_files" multiple> tag.
+        cv_files = request.FILES.getlist('cv_files')
+        
+        # A simple validation to check if any files were actually selected by the user.
+        if not cv_files:
+            messages.error(request, "No files were selected for upload.")
+            return redirect('candidate-bulk-upload')
+
+        # --- DELEGATING TO CELERY ---
+        # Instead of processing the files here and making the user wait,
+        # we loop through the files and create a background job for each one.
+        for cv_file in cv_files:
+            # We read the entire binary content of the uploaded file.
+            file_content = cv_file.read()
+            # We then encode this binary content into a base64 text string.
+            # This is a safe and reliable way to pass file data as an argument
+            # to a Celery task, as Celery's messaging system prefers text.
+            file_content_b64 = base64.b64encode(file_content).decode('utf-8')
+            
+            # This is the key step. We call our task with '.delay()'.
+            # '.delay()' is a shortcut to send the task to the Celery queue (Redis).
+            # It immediately returns without waiting for the task to finish.
+            # We pass all the necessary information for the task to run independently.
+            process_single_cv.delay(
+                file_content_b64,              # The encoded content of the CV file.
+                cv_file.name,                   # The original filename for logging.
+                request.user.employee.company.id, # The ID of the company.
+                request.user.id                 # The ID of the user who uploaded the file.
+            )
+
+        # Provide immediate feedback to the user that their request has been accepted.
+        messages.success(request, f"{len(cv_files)} CVs have been successfully queued for processing. You can continue working.")
+        
+        # Redirect the user back to the dashboard. They don't have to wait.
+        return redirect('dashboard')

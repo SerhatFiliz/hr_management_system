@@ -1,0 +1,43 @@
+{# This template inherits its basic structure from base.html #}
+{% extends "base.html" %}
+
+{# Load crispy_forms_tags in case we need them, it's a good practice. #}
+{% load crispy_forms_tags %}
+
+{# Override the page title #}
+{% block title %}Bulk CV Upload{% endblock %}
+
+{# Main content block for the bulk upload page #}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h2 class="card-title text-center mb-4">Upload Multiple CVs</h2>
+                <p class="text-center text-muted">You can select multiple PDF files at once.</p>
+                
+                <!-- 
+                    This form will send the selected files to our new view.
+                    'enctype="multipart/form-data"' is absolutely essential for any form
+                    that handles file uploads. Without it, the files will not be sent.
+                -->
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="cv_files_input" class="form-label">CV Files (PDF only)</label>
+                        <!-- 
+                            The 'multiple' attribute allows the user to select more than one file.
+                            The 'name="cv_files"' attribute is what we will use in our view to
+                            access the list of uploaded files.
+                        -->
+                        <input class="form-control" type="file" name="cv_files" id="cv_files_input" multiple required>
+                    </div>
+                    <div class="d-grid mt-4">
+                        <button type="submit" class="btn btn-primary">Upload and Process</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

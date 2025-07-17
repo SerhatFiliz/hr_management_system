@@ -1,13 +1,24 @@
+{# This template inherits its basic structure (navbar, footer, etc.) from base.html #}
 {% extends "base.html" %}
 
+{# This block overrides the default title defined in base.html #}
 {% block title %}Dashboard - HR Core{% endblock %}
 
+{# This is the main content block that will be injected into the 'content' block of base.html #}
 {% block content %}
 <div class="container mt-4">
     {# --- Page Header --- #}
+    {% comment %}
+        'd-flex' enables flexbox layout, 'justify-content-between' pushes items to opposite ends, 
+        'align-items-center' vertically centers them. 'mb-4 pb-2 border-bottom' adds spacing and a visual separator.
+    {% endcomment %}
     <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+        {# The 'h2' class is a standard heading size. The 'default' filter provides a fallback text if 'company.name' is empty. #}
         <h1 class="h2">{{ company.name|default:"My Company" }} Dashboard</h1>
+        {# 'd-flex gap-2' creates a flex container for the buttons with a small gap between them. #}
         <div class="d-flex gap-2">
+            {# This button links to our new bulk upload page using the URL name we defined in urls.py. #}
+            <a href="{% url 'candidate-bulk-upload' %}" class="btn btn-success">Bulk Upload CVs</a>
             <a href="{% url 'candidate-create' %}" class="btn btn-secondary">Add Candidate</a>
             <a href="{% url 'job-create' %}" class="btn btn-primary">Create Job Posting</a>
         </div>
@@ -15,10 +26,14 @@
 
     {# --- Job Postings Section --- #}
     <h2 class="h4 mb-3">Job Postings</h2>
+    {# The 'card' and 'shadow-sm' classes create a styled container with a subtle shadow for depth. #}
     <div class="card shadow-sm mb-4">
         <div class="card-body">
+            {# This Django template tag checks if the 'job_postings' list passed from the view is not empty. #}
             {% if job_postings %}
+                {# 'table-responsive' ensures the table will scroll horizontally on small screens instead of breaking the layout. #}
                 <div class="table-responsive">
+                    {# 'table-hover' adds a hover effect to table rows. 'align-middle' vertically centers content in cells. #}
                     <table class="table table-hover align-middle">
                         <thead>
                             <tr>
@@ -31,24 +46,29 @@
                             </tr>
                         </thead>
                         <tbody>
+                            {# This 'for' loop iterates through each 'job' object in the 'job_postings' list. #}
                             {% for job in job_postings %}
                                 <tr>
                                     <td>
+                                        {# The 'url' tag dynamically generates the URL for the job's detail page. 'job.pk' is the primary key (ID) of the job. #}
                                         <a href="{% url 'job-detail' job.pk %}">{{ job.title }}</a>
                                     </td>
                                     <td>
+                                        {# This 'if' statement checks the boolean 'is_active' field of the job object. #}
                                         {% if job.is_active %}
                                             <span class="badge bg-success">Active</span>
                                         {% else %}
                                             <span class="badge bg-secondary">Inactive</span>
                                         {% endif %}
                                     </td>
+                                    {# The 'date' filter formats the datetime object into a more readable string. "d M, Y" -> "17 Jul, 2025" #}
                                     <td>{{ job.created_at|date:"d M, Y" }}</td>
+                                    {# We access the related Employee's User object, and then the username field. #}
                                     <td>{{ job.created_by.user.username }}</td>
                                     <td>
                                     {# Check if a closing date exists for this job posting #}
                                     {% if job.closing_date %}
-                                        {# If it exists, format it nicely. #}
+                                        {# If it exists, format it nicely. "H:i" adds the time. #}
                                         {{ job.closing_date|date:"d M Y, H:i" }}
                                     {% else %}
                                         {# If not, display a placeholder text. #}
@@ -65,6 +85,7 @@
                         </tbody>
                     </table>
                 </div>
+            {# The 'else' part of the 'if' statement runs if the 'job_postings' list is empty. #}
             {% else %}
                 <p class="text-center text-muted mt-3">No job postings found. Create one to get started!</p>
             {% endif %}
@@ -94,7 +115,9 @@
                                     <td>{{ candidate.first_name }} {{ candidate.last_name }}</td>
                                     <td>{{ candidate.email }}</td>
                                     <td>
+                                        {# We check if the candidate has an uploaded resume file. #}
                                         {% if candidate.resume %}
+                                            {# 'candidate.resume.url' gets the public URL for the file. 'target="_blank"' opens it in a new tab. #}
                                             <a href="{{ candidate.resume.url }}" target="_blank" class="btn btn-sm btn-outline-info">View CV</a>
                                         {% else %}
                                             <span class="text-muted small">No CV</span>
@@ -120,4 +143,3 @@
     </div>
 </div>
 {% endblock %}
-    
