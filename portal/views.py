@@ -360,7 +360,7 @@ def generate_job_title_view(request):
             # It sends our payload and headers to the AI service and waits for a response.
             # The 'timeout=30' prevents our server from waiting forever if the AI is slow.
             response = requests.post(
-                settings.HUGGING_FACE_API_URL, 
+                settings.AI_SUMMARIZATION_MODEL_URL, 
                 headers=headers, 
                 json=api_payload,
                 timeout=30

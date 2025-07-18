@@ -3,12 +3,19 @@
 from celery import shared_task
 import time
 from django.utils import timezone
-from .models import JobPosting, Candidate # We need the Candidate model to create new profiles.
+from .models import JobPosting, Candidate, Company # We need the Candidate model to create new profiles.
 import PyPDF2 # The PDF library we just installed.
+
 import io # A library to handle file streams in memory.
 import base64 # A library to encode/decode binary data into text.
+from django.contrib.auth.models import User
+import os      # To safely access environment variables (like API keys).
+import requests# To make HTTP requests to the external AI API.
+import json    # To parse the JSON response from the AI.
+from django.core.files.base import ContentFile # To save the in-memory file to the model.
+import re
 
-
+import google.generativeai as genai # The official Google Gemini Python library.
 #----------------------------------------------------------------------------------------
 
 # The '@shared_task' decorator registers this function as a Celery task.
@@ -68,83 +75,91 @@ def deactivate_expired_postings():
         return message
     
 #-----------------------------------------------------------------------------------------
-
-# The '@shared_task' decorator registers this function as a Celery task.
-# This means it can be called asynchronously and will be executed by a Celery worker.
 @shared_task
 def process_single_cv(file_content_b64, original_filename, company_id, created_by_id):
     """
-    Processes a single uploaded CV file in the background.
-    
-    This task receives the file content and necessary IDs, extracts the text from the PDF,
-    and (in the future) will send this text to an AI service to create a candidate profile.
-
-    Args:
-        file_content_b64 (str): The binary content of the PDF file, encoded as a base64 string.
-                                We use base64 because it's a safe way to pass binary data
-                                through Celery's messaging system (which prefers text).
-        original_filename (str): The original name of the uploaded file, used for logging.
-        company_id (int): The ID of the company to associate the new candidate with.
-        created_by_id (int): The ID of the user who uploaded the CV.
+    Processes a single CV: extracts text, parses it with Google's Gemini model,
+    and creates a new candidate profile.
     """
     print(f"--- [Celery Task] Starting to process CV: {original_filename} ---")
     try:
-        # Step 1: Decode the file content.
-        # The file content arrives as a base64 text string. We need to decode it
-        # back into its original binary form before we can read it as a PDF.
+        # --- Step 1: Decode the File and Extract Raw Text (No changes here) ---
         file_content = base64.b64decode(file_content_b64)
-        
-        # Step 2: Read the PDF from memory.
-        # Instead of saving the file to the disk first, we use 'io.BytesIO'.
-        # This creates a temporary, in-memory binary file, which is more efficient.
         pdf_file = io.BytesIO(file_content)
-        
-        # Step 3: Use PyPDF2 to read the PDF structure.
         pdf_reader = PyPDF2.PdfReader(pdf_file)
-        
-        # Step 4: Extract text from all pages of the PDF.
         extracted_text = ""
         for page in pdf_reader.pages:
-            # We add the text from each page to our 'extracted_text' string.
-            # 'or ""' is a safety measure in case a page has no text.
             extracted_text += page.extract_text() or ""
 
-        # Step 5: Validate the extracted text.
-        # If the text is empty or just whitespace, we can't process it.
         if not extracted_text.strip():
-            print(f"[Celery Task] Could not extract any text from {original_filename}.")
+            print(f"[Celery Task] Could not extract text from {original_filename}.")
             return f"Failed: No text found in {original_filename}"
 
-        print(f"[Celery Task] Successfully extracted text from {original_filename}. Length: {len(extracted_text)} chars.")
-        
-        # --- NEXT STEP (To be implemented) ---
-        # This is where the magic will happen. We will add the logic to:
-        # 1. Send this 'extracted_text' to an AI API.
-        # 2. The AI will return structured data (e.g., {'first_name': 'John', 'last_name': 'Doe', 'email': 'john.doe@email.com'}).
-        # 3. We will use that data to create a new Candidate object in the database.
-        #
-        # For now, we just print the first 200 characters to confirm text extraction works.
-        print("[Celery Task] Extracted Text (first 200 chars):", extracted_text[:200])
-        
-        # Example of what the future code will look like:
-        # ai_data = call_ai_service(extracted_text)
-        # Candidate.objects.create(
-        #     first_name=ai_data.get('first_name'),
-        #     last_name=ai_data.get('last_name'),
-        #     email=ai_data.get('email'),
-        #     company_id=company_id,
-        #     created_by_id=created_by_id
-        # )
+        # --- Step 2: Parse Information with the Google Gemini API ---
+        # Configure the Gemini client with our API key from the .env file.
+        genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
-        return f"Successfully processed {original_filename}"
+        # We create a specific instruction ("prompt") for the AI.
+        prompt = (
+            "You are an expert HR assistant. From the following CV text, extract the "
+            "first_name, last_name, and email into a valid JSON object. "
+            "If a piece of information cannot be found, set its value to null. "
+            f"Return ONLY the JSON object and nothing else. \n\nCV Text: ```{extracted_text[:10000]}```"
+        )
+
+        print(f"[Celery Task] Sending text from {original_filename} to Gemini model...")
+        
+        # --- FIXED SECTION ---
+        # We initialize the generative model using a current and available model name.
+        # 'gemini-2.5-flash' is a fast and powerful model suitable for our task.
+        model = genai.GenerativeModel('gemini-2.5-flash')
+        
+        # This is how we send the prompt to the Gemini API.
+        response = model.generate_content(prompt)
+
+        # --- Step 3: Extract JSON from the AI's Response ---
+        generated_text = response.text
+        print(f"[Celery Task] Raw AI Response for {original_filename}: {generated_text}")
+        
+        # We use a regular expression to find the JSON block in the response,
+        # just in case the model adds extra text.
+        json_match = re.search(r'\{.*\}', generated_text, re.DOTALL)
+        if not json_match:
+            print(f"[Celery Task] AI response for {original_filename} did not contain valid JSON.")
+            return f"Failed: No JSON in AI response for {original_filename}"
+            
+        parsed_data = json.loads(json_match.group(0))
+        
+        email = parsed_data.get('email')
+        first_name = parsed_data.get('first_name')
+        last_name = parsed_data.get('last_name')
+
+        # --- Step 4: Validate Data and Create the Candidate Profile ---
+        if not email:
+            print(f"[Celery Task] AI could not find an email in {original_filename}. Skipping candidate creation.")
+            return f"Failed: Email not found in {original_filename}"
+
+        if Candidate.objects.filter(email=email, company_id=company_id).exists():
+            print(f"[Celery Task] A candidate with the email {email} already exists. Skipping.")
+            return f"Skipped: Candidate already exists for {original_filename}"
+
+        company = Company.objects.get(id=company_id)
+        created_by_user = User.objects.get(id=created_by_id)
+
+        new_candidate = Candidate.objects.create(
+            company=company,
+            first_name=first_name or "Unknown",
+            last_name=last_name or "Unknown",
+            email=email,
+            created_by=created_by_user.employee
+        )
+        
+        new_candidate.resume.save(original_filename, ContentFile(file_content), save=True)
+
+        print(f"[Celery Task] Successfully created new candidate via AI: {new_candidate.first_name} {new_candidate.last_name}")
+        return f"Successfully processed {original_filename} and created a new candidate via AI."
 
     except Exception as e:
-        # This is a general catch-all for any unexpected errors during the process
-        # (e.g., a corrupted PDF file). We log the error to the console.
+        # This will catch any errors, including API connection errors or parsing issues.
         print(f"[Celery Task] CRITICAL ERROR processing {original_filename}: {e}")
         return f"Failed: {e}"
-    
-    """
-    If a task is user-initiated (a button click, a form submission, etc.), we need a View to handle that request.
-    If a task is time-initiated (every night at 4:00, every hour, etc.), we need a Celery Beat timer, not a View, to handle that request.
-    """

@@ -106,3 +106,12 @@ UI Created: Developed bulk_cv_upload.html for multiple file uploads.
 Backend Implemented: Created BulkCVUploadView and its URL to receive files.
 Celery Task Created: Developed a new background task, process_single_cv, to handle individual file processing.
 Asynchronous Flow Verified: Confirmed that the view successfully delegates uploaded files to the Celery task, which then extracts the text from the PDFs in the background.
+
+--------------18.07.2025-------------------------------------------------------------------------------
+Initial AI Implementation (Hugging Face): First attempt at the AI feature was made using various models from the Hugging Face free API tier.
+Robust Fallback System Developed: Due to persistent 404 Not Found errors and instability with the Hugging Face API, a robust fallback system using Regular Expressions (RegEx) was developed within the Celery task to parse candidate details directly from the CV text.
+Strategic API Shift: To meet the project's core "AI-powered" requirement reliably, switched from the unstable Hugging Face free tier to the permanently free and stable Google Gemini API.
+New Dependency: Installed the google-generativeai library to interact with the new API.
+Environment Configuration: Updated the .env file, replacing Hugging Face credentials with the new GOOGLE_API_KEY.
+Celery Task Created for Google Gemini: The process_single_cv background task in portal/tasks.py was implemented to integrate directly with the Google Gemini API.
+Successful End-to-End Test: The entire CV processing pipeline was successfully verified

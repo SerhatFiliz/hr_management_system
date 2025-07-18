@@ -150,7 +150,7 @@ LOGIN_URL = '/accounts/login/'
 # --- HUGGING FACE API CONFIGURATION (SECURE) ---
 # Reads the API configuration securely from the .env file.
 # The second argument (e.g., 'default_url') is a fallback value if the variable is not found.
-HUGGING_FACE_API_URL = os.getenv("HUGGING_FACE_API_URL")
+AI_SUMMARIZATION_MODEL_URL = os.getenv("AI_SUMMARIZATION_MODEL_URL")
 HUGGING_FACE_API_KEY = os.getenv("HUGGING_FACE_API_KEY")
 
 # --- Crispy Forms Settings ---
