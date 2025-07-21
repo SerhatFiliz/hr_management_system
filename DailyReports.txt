@@ -115,3 +115,13 @@ New Dependency: Installed the google-generativeai library to interact with the n
 Environment Configuration: Updated the .env file, replacing Hugging Face credentials with the new GOOGLE_API_KEY.
 Celery Task Created for Google Gemini: The process_single_cv background task in portal/tasks.py was implemented to integrate directly with the Google Gemini API.
 Successful End-to-End Test: The entire CV processing pipeline was successfully verified
+
+-------------21.07.2025----------------------------------------------------------------------------
+Enhanced Celery Task with RegEx Fallback: Updated the process_single_cv task, which initially only used the AI, by adding a robust RegEx fallback system. This ensures candidate profiles are still created even if the AI API call fails.
+Developed Comprehensive Unit Tests for CV Upload Feature:
+    Verified AI Success Path: Confirmed a candidate is created correctly when the AI provides a valid response.
+    Verified RegEx Fallback Path: Confirmed that when the AI call is simulated to fail, the task's robust RegEx fallback system successfully parses the original CV text and creates a candidate.
+    Verified Bulk Upload View: Ensured the view triggers a separate Celery task for each uploaded file.
+Resolved Pre-existing Test Suite Error: Fixed a TypeError in an unrelated, older test case by updating the ApplicationForm.
+Achieved Full Project Stability: Confirmed that the entire test suite now passes (OK), validating the reliability of all new and existing features.
+

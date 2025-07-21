@@ -52,17 +52,35 @@ class CandidateForm(forms.ModelForm):
 class ApplicationForm(forms.ModelForm):
     """
     A form to associate a Candidate with a JobPosting.
+    This version is updated to handle the 'job_posting' kwarg from the view.
     """
     class Meta:
         model = Application
-        # The user only needs to select the candidate. The job will be set in the view.
         fields = ['candidate']
-        
         widgets = {
-            # The candidate field will be rendered as a dropdown with Bootstrap styling.
             'candidate': forms.Select(attrs={'class': 'form-select'}),
         }
 
+    # --- YENİ EKLENEN METOT ---
+    def __init__(self, *args, **kwargs):
+        """
+        We override the __init__ method to accept an extra 'job_posting' argument
+        passed from the ApplicationCreateView.
+        """
+        # We "pop" (remove) the extra 'job_posting' argument from the kwargs.
+        # We will use it, but the parent ModelForm's __init__ doesn't expect it.
+        job_posting = kwargs.pop('job_posting', None)
+        
+        # Now, call the parent class's __init__ method with the cleaned kwargs.
+        super().__init__(*args, **kwargs)
+        
+        # If we successfully received the job_posting object from the view...
+        if job_posting:
+            # ...we filter the 'candidate' field's queryset.
+            # This is a great feature: it ensures that the dropdown menu for candidates
+            # will only show candidates that belong to the SAME company as the job posting.
+            # This prevents accidentally applying a candidate from Company A to a job in Company B.
+            self.fields['candidate'].queryset = Candidate.objects.filter(company=job_posting.company)
 #------------------------------------------------------------------------------------------------------------------------
 
 # --- Application Status Form ---

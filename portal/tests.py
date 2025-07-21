@@ -7,7 +7,9 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.files.base import ContentFile
 from accounts.models import Company
 from .models import Employee, JobPosting, Candidate, Application
-
+from unittest.mock import patch, MagicMock # The library for "mocking" external services.
+from .tasks import process_single_cv # We import our Celery task to test it directly.
+import base64 # Needed to encode fake file content for the task.
 
 # All test classes must inherit from django.test.TestCase.
 # This provides a rich set of tools and sets up a clean test database for each run.
@@ -299,3 +301,117 @@ def test_candidate_creation_fails_with_invalid_file_type(self):
     # is present in the HTML content of the response.
     self.assertContains(response, "Allowed extensions are: pdf", msg_prefix="The PDF validation error message should be displayed.")
     
+#-----------------------------------------------------------------------------------------
+# We use a TestCase to group related tests together.
+class CVUploadTests(TestCase):
+
+    def setUp(self):
+        """
+        This method runs before every single test in this class.
+        It's used to set up a clean, predictable environment for each test.
+        """
+        # We create a test client to simulate browser requests.
+        self.client = Client()
+        
+        # We create the necessary objects for our tests.
+        self.company = Company.objects.create(name="Test Corp")
+        self.user = User.objects.create_user(username='testuser', password='password123')
+        # We must create an Employee profile for our test user.
+        self.employee = Employee.objects.create(user=self.user, company=self.company)
+        
+        # We log in our test user.
+        self.client.login(username='testuser', password='password123')
+
+    # --- Test for the View ---
+    
+    @patch('portal.views.process_single_cv.delay') # We "mock" the Celery task's delay method.
+    def test_bulk_cv_upload_post_triggers_task(self, mock_delay):
+        """
+        Tests if submitting the form with files correctly triggers the Celery task for each file.
+        """
+        print("Running test: test_bulk_cv_upload_post_triggers_task")
+        url = reverse('candidate-bulk-upload')
+        
+        # We create two fake PDF files in memory to simulate a bulk upload.
+        fake_cv1 = SimpleUploadedFile("test_cv1.pdf", b"file_content1", content_type="application/pdf")
+        fake_cv2 = SimpleUploadedFile("test_cv2.pdf", b"file_content2", content_type="application/pdf")
+        
+        # We simulate a POST request, sending the fake files.
+        self.client.post(url, {'cv_files': [fake_cv1, fake_cv2]})
+        
+        # This is the key assertion: We check that our mocked '.delay()' method was called twice,
+        # once for each file. This proves our view is correctly handling multiple files.
+        self.assertEqual(mock_delay.call_count, 2)
+
+    # --- Tests for the Celery Task ---
+
+    @patch('portal.tasks.genai.GenerativeModel') # We "mock" the entire Gemini Model class.
+    def test_process_single_cv_creates_candidate_on_ai_success(self, MockGenerativeModel):
+        """
+        Tests if the Celery task correctly creates a Candidate when the AI provides a valid response.
+        This tests our "Plan A".
+        """
+        print("Running test: test_process_single_cv_creates_candidate_on_ai_success")
+        
+        # --- Mocking the AI Response ---
+        # We create a fake response that looks exactly like a real one from the Gemini API.
+        mock_response = MagicMock()
+        mock_response.text = '```json\n{"first_name": "Jane", "last_name": "AI", "email": "jane.ai@test.com"}\n```'
+        
+        # We tell our mocked model's 'generate_content' method to return our fake response.
+        MockGenerativeModel.return_value.generate_content.return_value = mock_response
+        
+        fake_file_content_b64 = base64.b64encode(b"fake pdf content").decode('utf-8')
+
+        # --- We now also mock the PDF reader ---
+        # This prevents the "EOF marker not found" error by bypassing the actual PDF reading.
+        with patch('portal.tasks.PyPDF2.PdfReader') as mock_pdf_reader:
+            # We configure the mock to behave as if it read a PDF with some text.
+            mock_page = MagicMock()
+            mock_page.extract_text.return_value = "This is some fake CV text."
+            mock_pdf_reader.return_value.pages = [mock_page]
+
+            # We run the Celery task directly as a normal function inside the patch context.
+            process_single_cv(fake_file_content_b64, "fake_cv.pdf", self.company.id, self.user.id)
+        
+        # --- Assertions ---
+        # We check if a new Candidate was actually created in the database with the AI's data.
+        self.assertTrue(Candidate.objects.filter(email="jane.ai@test.com").exists())
+        candidate = Candidate.objects.get(email="jane.ai@test.com")
+        self.assertEqual(candidate.first_name, "Jane")
+        self.assertEqual(candidate.last_name, "AI")
+
+    @patch('portal.tasks.genai.GenerativeModel')
+    def test_process_single_cv_uses_regex_on_ai_failure(self, MockGenerativeModel):
+        """
+        Tests if the Celery task falls back to RegEx and still creates a Candidate
+        when the AI call fails. This tests our "Plan B".
+        """
+        print("Running test: test_process_single_cv_uses_regex_on_ai_failure")
+        
+        # --- Mocking an AI FAILURE ---
+        # We configure the mocked 'generate_content' method to raise an exception,
+        # simulating a network error or the API being down.
+        MockGenerativeModel.return_value.generate_content.side_effect = Exception("Simulating API failure")
+
+        # We create fake file content that contains information our RegEx can find.
+        fake_pdf_text = "This is a test CV for John Regex. Contact him at john.regex@test.com."
+        fake_file_content_b64 = base64.b64encode(fake_pdf_text.encode('utf-8')).decode('utf-8')
+        
+        # We need to also mock the PDF reader to return our fake text.
+        with patch('portal.tasks.PyPDF2.PdfReader') as mock_pdf_reader:
+            # Create a mock page object with an extract_text method.
+            mock_page = MagicMock()
+            mock_page.extract_text.return_value = fake_pdf_text
+            # Make the mock reader return a list containing our mock page.
+            mock_pdf_reader.return_value.pages = [mock_page]
+
+            # Run the task. This will trigger the exception inside the 'try' block.
+            process_single_cv(fake_file_content_b64, "fake_cv.pdf", self.company.id, self.user.id)
+        
+        # --- Assertions ---
+        # We check that a Candidate was STILL created, this time with the data found by our RegEx fallback.
+        self.assertTrue(Candidate.objects.filter(email="john.regex@test.com").exists())
+        candidate = Candidate.objects.get(email="john.regex@test.com")
+        self.assertEqual(candidate.first_name, "John")
+        self.assertEqual(candidate.last_name, "Regex")
