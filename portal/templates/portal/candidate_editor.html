@@ -1,86 +1,143 @@
-{# This template is for creating or editing a candidate #}
 {% extends "base.html" %}
-{% load crispy_forms_tags %}
 
-{% block title %}Candidate Editor{% endblock %}
+{% block title %}Create Candidate{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-8">
         <div class="card shadow-sm">
             <div class="card-body p-4">
-                <h2 class="card-title text-center mb-4">
-                    {% if form.instance.pk %}Edit Candidate{% else %}Add New Candidate{% endif %}
-                </h2>
-                <!-- 'enctype="multipart/form-data"' is crucial for file uploads (like resumes) to work. -->
-                <form method="post" enctype="multipart/form-data">
-                    {% csrf_token %}
-                    {{ form|crispy }}
-                    <div class="d-grid mt-4">
-                        <button type="submit" class="btn btn-primary">Save Candidate</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-{% endblock %}
-
-{# ------------------------------------------------------------------------------------------------------------------------- #}
-
-{%comment%}
-{% extends "base.html" %}
-
-{% block title %}Candidate Editor - HR Core{% endblock %}
-
-{% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-8 col-lg-7">
-        <div class="card shadow-sm">
-            <div class="card-body p-4">
-                <h2 class="card-title text-center mb-4">Add New Candidate</h2>
+                <h2 class="card-title text-center mb-4">Create New Candidate</h2>
                 
-                <!-- IMPORTANT: enctype is required for file uploads -->
                 <form method="post" enctype="multipart/form-data">
                     {% csrf_token %}
-                    
-                    <!-- We render the form fields manually to apply Bootstrap classes -->
-                    
-                    <!-- First Name Field -->
-                    <div class="mb-3">
-                        <label for="{{ form.first_name.id_for_label }}" class="form-label">{{ form.first_name.label }}</label>
-                        <input type="text" name="{{ form.first_name.html_name }}" id="{{ form.first_name.id_for_label }}" class="form-control" required>
-                    </div>
 
-                    <!-- Last Name Field -->
-                    <div class="mb-3">
-                        <label for="{{ form.last_name.id_for_label }}" class="form-label">{{ form.last_name.label }}</label>
-                        <input type="text" name="{{ form.last_name.html_name }}" id="{{ form.last_name.id_for_label }}" class="form-control" required>
-                    </div>
+                    {% for field in form %}
+                        
+                        {% if field.name == 'resume' %}
+                            
+                            <div class="mb-3">
+                                {{ field.label_tag }}
+                                <div class="input-group">
+                                    {{ field }} <button class="btn btn-outline-info" type="button" id="autofill-btn">Auto-fill from CV</button>
+                                </div>
+                                
+                                <div class="mt-2 d-flex align-items-center" style="min-height: 24px;">
+                                    <div class="spinner-border spinner-border-sm text-info d-none" role="status" id="autofill-spinner">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <span id="autofill-success-message" class="text-success fw-bold ms-2 d-none"></span>
+                                </div>
 
-                    <!-- Email Field -->
-                    <div class="mb-3">
-                        <label for="{{ form.email.id_for_label }}" class="form-label">{{ form.email.label }}</label>
-                        <input type="email" name="{{ form.email.html_name }}" id="{{ form.email.id_for_label }}" class="form-control" required>
-                    </div>
+                                {% if field.help_text %}
+                                    <div class="form-text mt-1">{{ field.help_text }}</div>
+                                {% endif %}
+                                {% for error in field.errors %}
+                                    <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                            </div>
 
-                    <!-- Resume Field -->
-                    <div class="mb-3">
-                        <label for="{{ form.resume.id_for_label }}" class="form-label">{{ form.resume.label }}</label>
-                        <input type="file" name="{{ form.resume.html_name }}" id="{{ form.resume.id_for_label }}" class="form-control" required>
-                    </div>
+                        {% else %}
+                            
+                            <div class="mb-3">
+                                {{ field.label_tag }}
+                                {{ field }}
+                                {% if field.help_text %}
+                                    <div class="form-text">{{ field.help_text }}</div>
+                                {% endif %}
+                                {% for error in field.errors %}
+                                    <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+
+                        {% endif %}
+                    {% endfor %}
+
+                    <hr class="mt-4">
 
                     <div class="d-grid">
                         <button type="submit" class="btn btn-primary">Save Candidate</button>
                     </div>
-
-                    <p class="text-center mt-3">
-                        <a href="{% url 'dashboard' %}" class="text-muted">Cancel</a>
-                    </p>
                 </form>
             </div>
         </div>
     </div>
 </div>
 {% endblock %}
-{%endcomment%}
+
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // --- Step 1: Get references to all the elements we need ---
+    const autoFillButton = document.getElementById('autofill-btn');
+    const autoFillSpinner = document.getElementById('autofill-spinner');
+    // Get a reference to our new success message element.
+    const successMessage = document.getElementById('autofill-success-message'); 
+    const cvFileInput = document.getElementById('id_resume');
+    const firstNameField = document.getElementById('id_first_name');
+    const lastNameField = document.getElementById('id_last_name');
+    const emailField = document.getElementById('id_email');
+    const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+
+    // --- Step 2: Add a 'click' event listener to the button ---
+    autoFillButton.addEventListener('click', function() {
+        if (!cvFileInput.files || cvFileInput.files.length === 0) {
+            alert('Please select a CV file first!');
+            return;
+        }
+        const cvFile = cvFileInput.files[0];
+        
+        // --- Step 2a: Reset UI and provide feedback ---
+        // Before starting a new request, always hide the success message from the previous one.
+        successMessage.classList.add('d-none');
+        autoFillSpinner.classList.remove('d-none'); // Show spinner
+        autoFillButton.disabled = true;             // Disable button
+        autoFillButton.textContent = 'Processing...';
+
+        // --- Step 3: Prepare and send the file to the API ---
+        const formData = new FormData();
+        formData.append('cv_file', cvFile);
+
+        fetch("{% url 'api-parse-cv-autofill' %}", {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrfToken },
+            body: formData
+        })
+        .then(response => {
+            if (!response.ok) { return response.json().then(err => Promise.reject(err)); }
+            return response.json();
+        })
+        .then(data => {
+            
+            // 4a. Populate the form fields with the data from the API.
+            if (firstNameField) firstNameField.value = data.first_name || '';
+            if (lastNameField) lastNameField.value = data.last_name || '';
+            if (emailField) emailField.value = data.email || '';
+            
+            // 4b. Set the text for our success message element.
+            successMessage.textContent = 'Successfully filled!';
+            // 4c. Make the success message visible by removing the 'd-none' class.
+            successMessage.classList.remove('d-none');
+
+            // 4d. Use 'setTimeout' to automatically hide the message after 3 seconds (3000 milliseconds).
+            // This creates a much better user experience than a disruptive alert box.
+            setTimeout(function() {
+                successMessage.classList.add('d-none');
+            }, 3000);
+        })
+        .catch(error => {
+            // Step 5: Handle any errors. We keep the alert for errors as they are critical.
+            console.error('Auto-fill failed:', error);
+            alert('Could not extract information. Error: ' + (error.error || 'Unknown server error'));
+        })
+        .finally(() => {
+            // Step 6: This block ALWAYS runs, to clean up the UI.
+            autoFillSpinner.classList.add('d-none');
+            autoFillButton.disabled = false;
+            autoFillButton.textContent = 'Auto-fill from CV';
+        });
+    });
+});
+</script>
+{% endblock extra_js %}

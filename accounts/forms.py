@@ -13,17 +13,6 @@ class UserRegistrationForm(UserCreationForm):
     A custom form for new user registration.
     This form is designed to work with the provided Company and Employee models.
     """
-    # We override the password fields directly in the class definition.
-    # This is the standard and most robust way to customize parent form fields
-    # and it completely avoids the 'KeyError' during form initialization.
-    password = forms.CharField(
-        label='Password', 
-        widget=forms.PasswordInput(attrs={'class': 'form-control'})
-    )
-    password2 = forms.CharField(
-        label='Password confirmation', 
-        widget=forms.PasswordInput(attrs={'class': 'form-control'})
-    )
 
     # We define the extra 'company_name' field that is not part of the default User model.
     company_name = forms.CharField(

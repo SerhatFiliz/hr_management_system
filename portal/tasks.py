@@ -75,12 +75,13 @@ def deactivate_expired_postings():
         return message
     
 #-----------------------------------------------------------------------------------------
+"""
 @shared_task
 def process_single_cv(file_content_b64, original_filename, company_id, created_by_id):
-    """
-    Processes a single CV using an AI-first approach with a RegEx fallback.
-    This task is designed to be robust and handle potential failures gracefully.
-    """
+    
+    # Processes a single CV using an AI-first approach with a RegEx fallback.
+    # This task is designed to be robust and handle potential failures gracefully.
+    
     print(f"--- [Celery Task] Starting to process CV: {original_filename} ---")
     # This is the main try...except block. It's a safety net for the entire task.
     # If any completely unexpected error occurs, this will catch it and prevent the worker from crashing.
@@ -193,3 +194,122 @@ def process_single_cv(file_content_b64, original_filename, company_id, created_b
         # This is the final safety net. It catches any other unexpected errors.
         print(f"[Celery Task] CRITICAL ERROR processing {original_filename}: {e}")
         return f"Failed: {e}"
+"""
+
+# We add the 'create_candidate=True' argument. The '=True' part makes it an
+# optional argument with a default value. This means if the argument is not
+# provided, it will assume we want to create a candidate.
+@shared_task
+def process_single_cv(file_content_b64, original_filename, company_id, created_by_id, create_candidate=True):
+    """
+    Processes a single CV using an AI-first approach with a RegEx fallback.
+    If 'create_candidate' is True, it saves the profile to the database.
+    Otherwise, it returns the extracted data as a dictionary.
+    """
+    print(f"--- [Celery Task] Starting to PARSE CV: {original_filename} ---")
+    try:
+        # --- Step 1: Decode the File and Extract Raw Text ---
+        file_content = base64.b64decode(file_content_b64)
+        pdf_file = io.BytesIO(file_content)
+        pdf_reader = PyPDF2.PdfReader(pdf_file)
+        extracted_text = ""
+        for page in pdf_reader.pages:
+            extracted_text += page.extract_text() or ""
+
+        if not extracted_text.strip():
+            print(f"[Celery Task] Could not extract text from {original_filename}.")
+            return {'error': f"Failed: No text found in {original_filename}"}
+
+        # --- Initialize variables to hold the data we find ---
+        email = None
+        first_name = None
+        last_name = None
+
+        # This inner try...except block is for the AI part specifically.
+        try:
+            # --- Step 2 (Primary Method): Parse Information with the Google Gemini API ---
+            print(f"[Celery Task] Attempting to parse with Google Gemini API for {original_filename}...")
+            genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+
+            prompt = (
+                "You are an expert HR assistant. From the following CV text, extract the "
+                "first_name, last_name, and email into a valid JSON object. "
+                "If a piece of information cannot be found, set its value to null. "
+                f"Return ONLY the JSON object and nothing else. \n\nCV Text: ```{extracted_text[:10000]}```"
+            )
+            
+            model = genai.GenerativeModel('gemini-2.5-flash')
+            response = model.generate_content(prompt)
+            generated_text = response.text
+            
+            json_match = re.search(r'\{.*\}', generated_text, re.DOTALL)
+            if not json_match:
+                raise ValueError("No valid JSON found in AI response.")
+                
+            parsed_data = json.loads(json_match.group(0))
+            email = parsed_data.get('email')
+            first_name = parsed_data.get('first_name')
+            last_name = parsed_data.get('last_name')
+            print(f"[Celery Task] Successfully parsed data using AI for {original_filename}.")
+
+        except Exception as api_error:
+            # --- Step 2 (Fallback Method): If the AI method fails, this code runs. ---
+            print(f"[Celery Task] AI processing failed: {api_error}. Falling back to RegEx parser.")
+            
+            email_match = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', extracted_text)
+            if email_match:
+                email = email_match.group(0)
+                print(f"[Celery Task] Found email using RegEx fallback: {email}")
+
+            name_match = re.search(r'([A-Z][a-z]+)\s+([A-Z][a-z]+)', extracted_text)
+            if name_match:
+                first_name = name_match.group(1)
+                last_name = name_match.group(2)
+                print(f"[Celery Task] Found potential name using RegEx fallback: {first_name} {last_name}")
+
+        # --- Step 3: Decide What to Do with the Data ---
+        
+        if not email:
+            print(f"[Celery Task] Could not find an email in {original_filename} using any method.")
+            return {'error': f"Failed: Email not found in {original_filename}"}
+
+        parsed_result = {
+            'first_name': first_name,
+            'last_name': last_name,
+            'email': email,
+            'file_content_b64': file_content_b64,
+            'original_filename': original_filename,
+        }
+
+        # If the task was called only to parse data (for the interactive UI)...
+        if not create_candidate:
+            print(f"[Celery Task] Parsing complete for {original_filename}. Returning data without saving.")
+            return parsed_result
+
+        # --- Step 4: (Optional) Create the Candidate Profile ---
+        # This part of the code only runs if create_candidate is True.
+        
+        print(f"[Celery Task] Proceeding to save candidate: {email}")
+        if Candidate.objects.filter(email=email, company_id=company_id).exists():
+            print(f"[Celery Task] A candidate with the email {email} already exists. Skipping.")
+            return f"Skipped: Candidate already exists for {original_filename}"
+
+        company = Company.objects.get(id=company_id)
+        created_by_user = User.objects.get(id=created_by_id)
+        
+        new_candidate = Candidate.objects.create(
+            company=company,
+            first_name=first_name or "Unknown",
+            last_name=last_name or "Unknown",
+            email=email,
+            created_by=created_by_user.employee
+        )
+        
+        new_candidate.resume.save(original_filename, ContentFile(file_content), save=True)
+
+        print(f"[Celery Task] Successfully created new candidate: {new_candidate.first_name} {new_candidate.last_name}")
+        return f"Successfully processed and created a new candidate for {original_filename}."
+
+    except Exception as e:
+        print(f"[Celery Task] CRITICAL ERROR processing {original_filename}: {e}")
+        return {'error': str(e)}

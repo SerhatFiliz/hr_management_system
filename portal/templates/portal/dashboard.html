@@ -1,39 +1,26 @@
-{# This template inherits its basic structure (navbar, footer, etc.) from base.html #}
 {% extends "base.html" %}
 
-{# This block overrides the default title defined in base.html #}
 {% block title %}Dashboard - HR Core{% endblock %}
 
-{# This is the main content block that will be injected into the 'content' block of base.html #}
 {% block content %}
 <div class="container mt-4">
-    {# --- Page Header --- #}
-    {% comment %}
-        'd-flex' enables flexbox layout, 'justify-content-between' pushes items to opposite ends, 
-        'align-items-center' vertically centers them. 'mb-4 pb-2 border-bottom' adds spacing and a visual separator.
-    {% endcomment %}
+    
+    {% csrf_token %}
+
     <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
-        {# The 'h2' class is a standard heading size. The 'default' filter provides a fallback text if 'company.name' is empty. #}
         <h1 class="h2">{{ company.name|default:"My Company" }} Dashboard</h1>
-        {# 'd-flex gap-2' creates a flex container for the buttons with a small gap between them. #}
         <div class="d-flex gap-2">
-            {# This button links to our new bulk upload page using the URL name we defined in urls.py. #}
             <a href="{% url 'candidate-bulk-upload' %}" class="btn btn-success">Bulk Upload CVs</a>
             <a href="{% url 'candidate-create' %}" class="btn btn-secondary">Add Candidate</a>
             <a href="{% url 'job-create' %}" class="btn btn-primary">Create Job Posting</a>
         </div>
     </div>
 
-    {# --- Job Postings Section --- #}
     <h2 class="h4 mb-3">Job Postings</h2>
-    {# The 'card' and 'shadow-sm' classes create a styled container with a subtle shadow for depth. #}
     <div class="card shadow-sm mb-4">
         <div class="card-body">
-            {# This Django template tag checks if the 'job_postings' list passed from the view is not empty. #}
             {% if job_postings %}
-                {# 'table-responsive' ensures the table will scroll horizontally on small screens instead of breaking the layout. #}
                 <div class="table-responsive">
-                    {# 'table-hover' adds a hover effect to table rows. 'align-middle' vertically centers content in cells. #}
                     <table class="table table-hover align-middle">
                         <thead>
                             <tr>
@@ -46,53 +33,40 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {# This 'for' loop iterates through each 'job' object in the 'job_postings' list. #}
                             {% for job in job_postings %}
-                                <tr>
+                                <tr id="job-row-{{ job.pk }}">
+                                    <td><a href="{% url 'job-detail' job.pk %}">{{ job.title }}</a></td>
                                     <td>
-                                        {# The 'url' tag dynamically generates the URL for the job's detail page. 'job.pk' is the primary key (ID) of the job. #}
-                                        <a href="{% url 'job-detail' job.pk %}">{{ job.title }}</a>
+                                        {% if job.is_active %}<span class="badge bg-success">Active</span>{% else %}<span class="badge bg-secondary">Inactive</span>{% endif %}
                                     </td>
-                                    <td>
-                                        {# This 'if' statement checks the boolean 'is_active' field of the job object. #}
-                                        {% if job.is_active %}
-                                            <span class="badge bg-success">Active</span>
-                                        {% else %}
-                                            <span class="badge bg-secondary">Inactive</span>
-                                        {% endif %}
-                                    </td>
-                                    {# The 'date' filter formats the datetime object into a more readable string. "d M, Y" -> "17 Jul, 2025" #}
                                     <td>{{ job.created_at|date:"d M, Y" }}</td>
-                                    {# We access the related Employee's User object, and then the username field. #}
                                     <td>{{ job.created_by.user.username }}</td>
                                     <td>
-                                    {# Check if a closing date exists for this job posting #}
-                                    {% if job.closing_date %}
-                                        {# If it exists, format it nicely. "H:i" adds the time. #}
-                                        {{ job.closing_date|date:"d M Y, H:i" }}
-                                    {% else %}
-                                        {# If not, display a placeholder text. #}
-                                        <span class="text-muted">Not set</span>
-                                    {% endif %}
+                                        {% if job.closing_date %}{{ job.closing_date|date:"d M Y, H:i" }}{% else %}<span class="text-muted">Not set</span>{% endif %}
                                     </td>
-                                    {# Actions column with Edit and Delete buttons #}   
                                     <td class="text-end">
                                         <a href="{% url 'job-update' job.pk %}" class="btn btn-sm btn-outline-primary">Edit</a>
-                                        <a href="{% url 'job-delete' job.pk %}" class="btn btn-sm btn-outline-danger">Delete</a>
+                                        <button type="button" class="btn btn-sm btn-outline-danger"
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#deleteConfirmModal"
+                                                data-delete-url="{% url 'job-delete' job.pk %}"
+                                                data-item-name="{{ job.title }}"
+                                                data-item-type="job"
+                                                data-item-id="{{ job.pk }}">
+                                            Delete
+                                        </button>
                                     </td>
                                 </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
-            {# The 'else' part of the 'if' statement runs if the 'job_postings' list is empty. #}
             {% else %}
                 <p class="text-center text-muted mt-3">No job postings found. Create one to get started!</p>
             {% endif %}
         </div>
     </div>
 
-    {# --- Candidates Section --- #}
     <h2 class="h4 mb-3">Candidates</h2>
     <div class="card shadow-sm">
         <div class="card-body">
@@ -104,32 +78,32 @@
                                 <th scope="col">Name</th>
                                 <th scope="col">Email</th>
                                 <th scope="col">Resume</th>
-                                <th scope="col">Added At</th>      
-                                <th scope="col">Added By</th>       
+                                <th scope="col">Added At</th>
+                                <th scope="col">Added By</th>
                                 <th scope="col" class="text-end">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for candidate in candidates %}
-                                <tr>
+                                <tr id="candidate-row-{{ candidate.pk }}">
                                     <td>{{ candidate.first_name }} {{ candidate.last_name }}</td>
                                     <td>{{ candidate.email }}</td>
                                     <td>
-                                        {# We check if the candidate has an uploaded resume file. #}
-                                        {% if candidate.resume %}
-                                            {# 'candidate.resume.url' gets the public URL for the file. 'target="_blank"' opens it in a new tab. #}
-                                            <a href="{{ candidate.resume.url }}" target="_blank" class="btn btn-sm btn-outline-info">View CV</a>
-                                        {% else %}
-                                            <span class="text-muted small">No CV</span>
-                                        {% endif %}
+                                        {% if candidate.resume %}<a href="{{ candidate.resume.url }}" target="_blank" class="btn btn-sm btn-outline-info">View CV</a>{% else %}<span class="text-muted small">No CV</span>{% endif %}
                                     </td>
-                                    {# Display the creation date of the candidate profile. #}
                                     <td>{{ candidate.created_at|date:"d M, Y" }}</td>
-                                    {# Display the username of the employee who added this candidate. #}
                                     <td>{{ candidate.created_by.user.username }}</td>
                                     <td class="text-end">
                                         <a href="{% url 'candidate-update' pk=candidate.pk %}" class="btn btn-sm btn-outline-primary">Edit</a>
-                                        <a href="{% url 'candidate-delete' pk=candidate.pk %}" class="btn btn-sm btn-outline-danger">Delete</a>
+                                        <button type="button" class="btn btn-sm btn-outline-danger"
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#deleteConfirmModal"
+                                                data-delete-url="{% url 'candidate-delete' pk=candidate.pk %}"
+                                                data-item-name="{{ candidate.first_name }} {{ candidate.last_name }}"
+                                                data-item-type="candidate"
+                                                data-item-id="{{ candidate.pk }}">
+                                            Delete
+                                        </button>
                                     </td>
                                 </tr>
                             {% endfor %}
@@ -142,4 +116,106 @@
         </div>
     </div>
 </div>
+
+
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p id="deleteModalBodyText"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Yes, Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
+
+{% block extra_js %}
+<script>
+// 'DOMContentLoaded' is a browser event that fires when the initial HTML document has been completely loaded and parsed.
+// We wrap our code in this event listener as a best practice to ensure our script doesn't try to find HTML elements that don't exist yet.
+document.addEventListener('DOMContentLoaded', function () {
+
+    // Step 1: Get references to the HTML elements we will interact with. Caching them in variables is efficient and makes the code more readable.
+    const deleteModalEl = document.getElementById('deleteConfirmModal');
+    if (!deleteModalEl) return; // A safety check in case this script runs on a page without the modal.
+
+    const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+    const deleteModalLabel = document.getElementById('deleteModalLabel');
+    const deleteModalBodyText = document.getElementById('deleteModalBodyText');
+    
+    // Create a controllable Bootstrap Modal instance from our HTML element. This allows us to call methods like .hide().
+    const deleteModal = new bootstrap.Modal(deleteModalEl);
+
+    // Step 2: Listen for the modal to open.
+    // Bootstrap fires a 'show.bs.modal' event just BEFORE the modal is shown. This is the perfect moment to customize its content.
+    // This event-driven approach is very efficient, as we only need one listener for the modal, no matter how many delete buttons are on the page.
+    deleteModalEl.addEventListener('show.bs.modal', function (event) {
+        
+        // 'event.relatedTarget' is a special property that gives us the exact button that was clicked to trigger the modal.
+        const button = event.relatedTarget;
+
+        // Step 3: Read the data from the button.
+        // We read the custom data we stored in the button's 'data-*' attributes in the HTML.
+        const deleteUrl = button.getAttribute('data-delete-url');
+        const itemName = button.getAttribute('data-item-name');
+        const itemType = button.getAttribute('data-item-type');
+        const itemId = button.getAttribute('data-item-id');
+
+        // Step 4: Update the modal's content dynamically.
+        // This makes our generic modal specific to the item being deleted.
+        deleteModalLabel.textContent = `Delete ${itemType.charAt(0).toUpperCase() + itemType.slice(1)}`;
+        deleteModalBodyText.textContent = `Are you sure you want to permanently delete "${itemName}"? This action cannot be undone.`;
+
+        // Step 5: Pass the necessary data to the final confirm button.
+        // We store the URL and the row's ID on the 'Yes, Delete' button itself, ready for the next step.
+        confirmDeleteBtn.dataset.url = deleteUrl;
+        confirmDeleteBtn.dataset.rowId = `${itemType}-row-${itemId}`;
+    });
+
+    // Step 6: Add a click listener to the 'Yes, Delete' button inside the modal.
+    confirmDeleteBtn.addEventListener('click', function () {
+        // Step 6a: Retrieve the data we stored on this button in the previous step.
+        const urlToDelete = this.dataset.url;
+        const rowId = this.dataset.rowId;
+        const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+
+        // Step 6b: 'fetch' is the modern JavaScript API for making asynchronous web requests (AJAX) to the server.
+        fetch(urlToDelete, {
+            method: 'POST', // We must use POST for actions that change data on the server (like deleting).
+            headers: {
+                // We must include these headers for the Django view to accept the request.
+                'X-CSRFToken': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest', // A standard header to identify an AJAX request on the server.
+            }
+        })
+        .then(response => response.json()) // The 'fetch' API is promise-based. The first '.then()' waits for the server to respond and parses the response as JSON.
+        .then(data => {
+            // This second '.then()' works with the parsed JSON data sent from our Django view (e.g., {'success': true}).
+            if (data.success) {
+                // Step 6c: If the server confirms success, we provide instant feedback to the user in the UI.
+                const rowToRemove = document.getElementById(rowId);
+                if (rowToRemove) {
+                    rowToRemove.remove(); // This removes the table row from the page without a full page refresh.
+                }
+                deleteModal.hide();   // This closes the modal window programmatically.
+            } else {
+                alert(data.error || 'An error occurred on the server.'); // Show an error if the server reported one.
+            }
+        })
+        .catch(error => {
+            // The '.catch()' block handles network-level errors (e.g., the server is down, no internet) or other problems with the request.
+            console.error('Deletion failed:', error);
+            alert('Could not connect to the server. Please try again.');
+        });
+    });
+});
+</script>
+{% endblock extra_js %}

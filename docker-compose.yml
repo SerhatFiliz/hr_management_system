@@ -1,0 +1,76 @@
+# Define the version of the Docker Compose file format
+version: '3.8'
+
+# Define all the services (containers) that make up our application
+services:
+  # The PostgreSQL Database Service
+  db:
+    image: postgres:15-alpine  # Use the official PostgreSQL 15 image
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/  # Persist database data on the host machine
+    environment:
+      - POSTGRES_DB=${SQL_DATABASE}      # Set database name from .env file
+      - POSTGRES_USER=${SQL_USER}        # Set database user from .env file
+      - POSTGRES_PASSWORD=${SQL_PASSWORD}  # Set database password from .env file
+    ports:
+      - "5432:5432"  # Map port 5432 on the host to 5432 in the container (for local debugging)
+    healthcheck: # Add this section for health checking
+      test: ["CMD-SHELL", "pg_isready -U ${SQL_USER} -d ${SQL_DATABASE}"] # Check if DB is ready
+      interval: 5s # Check every 5 seconds
+      timeout: 5s # Timeout after 5 seconds
+      retries: 5 # Retry 5 times before marking as unhealthy
+      start_period: 10s # Give the DB 10 seconds to start before checking
+
+  # The Redis Service for Celery
+  redis:
+    image: redis:7-alpine  # Use the official Redis 7 image
+
+  # The Django Web Application Service
+  web:
+    build: .  # Build the image from the Dockerfile in the current directory
+    # IMPORTANT: Use Gunicorn for a production-ready web server, not 'runserver'.
+    command: gunicorn hr_management_system.wsgi:application --bind 0.0.0.0:8000
+    volumes:
+      - .:/app  # Mount the current directory on the host to /app in the container for live code reloading
+    ports:
+      - "8000:8000"  # Map port 8000 on the host to 8000 in the container
+    env_file:
+      - ./.env  # Load all environment variables from the .env file (cleaner method).
+    depends_on:
+      db:
+        condition: service_healthy # Wait until 'db' service is healthy
+      redis:
+        condition: service_started # Redis doesn't need a healthcheck for basic functionality
+
+  # The Celery Worker Service
+  celery_worker:
+    build: .  # Use the same image as the web service
+    # The command reads configuration from Django settings, which is more flexible.
+    command: celery -A hr_management_system worker -l info
+    volumes:
+      - .:/app  # Mount the code for live reloading
+    env_file:
+      - ./.env  # Load the same environment variables
+    depends_on:
+      db:
+        condition: service_healthy # Wait until 'db' service is healthy
+      redis:
+        condition: service_started
+
+  # The Celery Beat Scheduler Service (for scheduled tasks)
+  celery_beat:
+    build: . # Use the same image
+    command: celery -A hr_management_system beat -l info
+    volumes:
+      - .:/app
+    env_file:
+      - ./.env
+    depends_on:
+      db:
+        condition: service_healthy # Wait until 'db' service is healthy
+      redis:
+        condition: service_started
+
+# Define the named volume for persisting database data
+volumes:
+  postgres_data:

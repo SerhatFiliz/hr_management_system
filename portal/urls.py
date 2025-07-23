@@ -72,4 +72,16 @@ urlpatterns = [
     # 'views.BulkCVUploadView.as_view()' tells Django to use the class-based view we are about to create.
     # 'name='candidate-bulk-upload'' gives this URL a unique name so we can refer to it in our templates.
     path('candidates/bulk-upload/', BulkCVUploadView.as_view(), name='candidate-bulk-upload'),
+
+     # --- NEW API URLs ---
+    # This endpoint will receive a single CV file, parse it using our task's logic,
+    # and return the extracted data as JSON.
+    path('api/parse-cv/', views.parse_cv_api_view, name='api-parse-cv'),
+    
+    # This endpoint will receive a list of user-approved/edited candidate data
+    # and save them to the database in bulk.
+    path('api/save-candidates/', views.save_candidates_api_view, name='api-save-candidates'),
+
+    # This path is for our new autofill feature.
+    path('api/parse-cv-autofill/', views.parse_cv_for_autofill_api, name='api-parse-cv-autofill'),
 ]
