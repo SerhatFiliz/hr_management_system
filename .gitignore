@@ -129,7 +129,7 @@ celerybeat-schedule
 celerybeat.pid
 celerybeat-schedule.bak  
 celerybeat-schedule.dat 
-celerybeat-schedule.dir #
+celerybeat-schedule.dir 
 
 # SageMath parsed files
 *.sage.py
