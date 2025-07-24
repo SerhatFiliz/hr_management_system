@@ -20,12 +20,14 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Step 6: Copy the entrypoint script
+# --- DÜZELTME BURADA ---
+# Step 6: Copy the entrypoint script AND make it executable
+# entrypoint.sh dosyasını kopyalayın ve çalıştırılabilir hale getirin
 COPY ./entrypoint.sh /app/entrypoint.sh
-# Make the script executable
 RUN chmod +x /app/entrypoint.sh
 
 # Step 7: Copy the rest of the application code into the container
+# entrypoint.sh'den SONRA kopyalanmalı
 COPY . .
 
 # Step 8: Expose the port the app runs on
@@ -34,3 +36,9 @@ EXPOSE 8000
 # Step 9: Define the entrypoint for the container.
 # This will run our setup script before starting the main process.
 ENTRYPOINT ["/app/entrypoint.sh"]
+
+# Step 10: Define the default command that will be passed as arguments to ENTRYPOINT.
+# docker-compose.yml'deki command bu CMD'yi geçersiz kılar, bu normaldir.
+# Önemli olan, entrypoint.sh'nin kendisinin bulunması ve doğru argümanları almasıdır.
+# entrypoint.sh'deki "exec "$@"" komutu bu CMD'yi veya docker-compose'daki command'i çalıştırır.
+CMD ["gunicorn", "hr_management_system.wsgi:application", "--bind", "0.0.0.0:8000"]
