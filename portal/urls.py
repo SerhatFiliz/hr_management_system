@@ -84,4 +84,11 @@ urlpatterns = [
 
     # This path is for our new autofill feature.
     path('api/parse-cv-autofill/', views.parse_cv_for_autofill_api, name='api-parse-cv-autofill'),
+
+    # This path defines the URL for our new status checking API.
+    # - '<str:task_id>/': This is a path converter. It tells Django to expect a string
+    #   in this part of the URL and to pass it as an argument named 'task_id' to our view.
+    # For example, a request to '/api/check-task-status/abc-123/' will call the
+    # check_task_status_api(request, task_id='abc-123') function.
+    path('api/check-task-status/<str:task_id>/', views.check_task_status_api, name='api-check-task-status'),
 ]

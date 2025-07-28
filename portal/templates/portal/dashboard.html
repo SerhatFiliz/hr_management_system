@@ -1,24 +1,54 @@
+<!-- 
+  This tag declares that this template inherits its main structure (like the navbar and footer) 
+  from 'base.html'. This is the core of Django's template inheritance system, promoting code reuse.
+-->
 {% extends "base.html" %}
 
+<!-- This block overrides the default title defined in the parent 'base.html' template. -->
 {% block title %}Dashboard - HR Core{% endblock %}
 
+<!-- 
+  The 'content' block is the main placeholder. All of the unique HTML for the dashboard page 
+  (the tables, cards, etc.) goes inside this block. Django will inject this content into the 
+  corresponding 'content' block in 'base.html'.
+-->
 {% block content %}
 <div class="container mt-4">
     
+    <!-- 
+      This CSRF token is a critical security feature in Django. It creates a hidden input field
+      with a unique token. Our JavaScript needs to read this token and include it in any POST request
+      (like our delete request) to prove that the request is legitimate and not from a malicious site.
+    -->
     {% csrf_token %}
 
+    <!-- Page Header and Action Buttons -->
     <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+        <!-- 
+          We display the company name dynamically. The '|default' filter provides a fallback text
+          in case the 'company.name' variable is empty or doesn't exist in the context.
+        -->
         <h1 class="h2">{{ company.name|default:"My Company" }} Dashboard</h1>
         <div class="d-flex gap-2">
+            <!-- 
+              The 'url' tag is the correct and safe way to generate URLs in Django. It uses the URL 'name'
+              defined in your urls.py file. If you ever change the URL path, you only need to update it
+              in urls.py, and all your templates will automatically use the new path. This prevents broken links.
+            -->
             <a href="{% url 'candidate-bulk-upload' %}" class="btn btn-success">Bulk Upload CVs</a>
             <a href="{% url 'candidate-create' %}" class="btn btn-secondary">Add Candidate</a>
             <a href="{% url 'job-create' %}" class="btn btn-primary">Create Job Posting</a>
         </div>
     </div>
 
+    <!-- Job Postings Section -->
     <h2 class="h4 mb-3">Job Postings</h2>
     <div class="card shadow-sm mb-4">
         <div class="card-body">
+            <!-- 
+              This is conditional rendering. The HTML for the table will only be displayed
+              if the 'job_postings' list (passed from your Django view) contains at least one item.
+            -->
             {% if job_postings %}
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
@@ -33,12 +63,19 @@
                             </tr>
                         </thead>
                         <tbody>
+                            <!-- This 'for' loop iterates through each 'job' object in the 'job_postings' list. -->
                             {% for job in job_postings %}
+                                <!-- 
+                                  We give each table row a unique ID based on the job's primary key (pk).
+                                  This is crucial for our JavaScript, which will use this ID to find and remove 
+                                  the correct row from the page after a successful deletion, without needing a page refresh.
+                                -->
                                 <tr id="job-row-{{ job.pk }}">
                                     <td><a href="{% url 'job-detail' job.pk %}">{{ job.title }}</a></td>
                                     <td>
                                         {% if job.is_active %}<span class="badge bg-success">Active</span>{% else %}<span class="badge bg-secondary">Inactive</span>{% endif %}
                                     </td>
+                                    <!-- The 'date' filter formats a Python datetime object into a more readable string. -->
                                     <td>{{ job.created_at|date:"d M, Y" }}</td>
                                     <td>{{ job.created_by.user.username }}</td>
                                     <td>
@@ -46,6 +83,11 @@
                                     </td>
                                     <td class="text-end">
                                         <a href="{% url 'job-update' job.pk %}" class="btn btn-sm btn-outline-primary">Edit</a>
+                                        <!-- 
+                                          This button is configured to trigger our JavaScript modal.
+                                          'data-*' attributes are a standard way to pass custom data from the server-rendered HTML 
+                                          to the client-side JavaScript. Our script will read these attributes to know WHAT to delete.
+                                        -->
                                         <button type="button" class="btn btn-sm btn-outline-danger"
                                                 data-bs-toggle="modal" 
                                                 data-bs-target="#deleteConfirmModal"
@@ -62,12 +104,86 @@
                     </table>
                 </div>
             {% else %}
+                <!-- This content is shown if the 'job_postings' list is empty. -->
                 <p class="text-center text-muted mt-3">No job postings found. Create one to get started!</p>
             {% endif %}
         </div>
     </div>
 
+    <!-- Candidates Section -->
     <h2 class="h4 mb-3">Candidates</h2>
+
+    <!-- 
+    ======================================================
+    ===== STEP 1.2: CONNECTING THE FILTER FORM TO THE BACKEND =====
+    ======================================================
+    -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <!-- 
+              This is the form that will submit our filter criteria.
+              - method="GET": We use GET because filtering is a non-destructive action (it doesn't change data).
+                The filter parameters will be appended to the URL as a query string (e.g., ?name_email=test&start_date=...).
+              - action="{% url 'dashboard' %}": This specifies that when the form is submitted, it will send the data
+                back to the same dashboard URL, which our view will then process.
+            -->
+            <form method="GET" action="{% url 'dashboard' %}" class="row g-3 align-items-end">
+                
+                <!-- Filter by Name or Email -->
+                <div class="col-md-4">
+                    <label for="name_email" class="form-label">Name or Email</label>
+                    <!-- 
+                      MODIFICATION: We add the 'value' attribute here.
+                      It's populated with the 'name_email' value from the 'filter_values' dictionary
+                      we created in the view. This makes the form "remember" the user's search term after the page reloads.
+                    -->
+                    <input type="text" class="form-control" id="name_email" name="name_email" placeholder="Search by name or email..." value="{{ filter_values.name_email }}">
+                </div>
+
+                <!-- Filter by the user who added the candidate -->
+                <div class="col-md-2">
+                    <label for="added_by" class="form-label">Added By</label>
+                    <select id="added_by" name="added_by" class="form-select">
+                        <option value="" selected>All Users</option>
+                        <!-- 
+                          MODIFICATION: This is now a dynamic dropdown.
+                          We loop through the 'company_employees' list sent from the view.
+                          For each employee, we create an <option> tag.
+                          The 'if' condition inside the option tag checks if the current employee's ID matches
+                          the filtered value. If it does, it adds the 'selected' attribute to that option,
+                          making the form "remember" the selected user.
+                        -->
+                        {% for employee in company_employees %}
+                            <option value="{{ employee.id }}" {% if filter_values.added_by == employee.id|stringformat:"s" %}selected{% endif %}>
+                                {{ employee.user.username }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Filter by a date range -->
+                <div class="col-md-4">
+                     <label class="form-label">Added At (Date Range)</label>
+                     <div class="input-group">
+                        <!-- We also add the 'value' attribute to the date inputs to remember the selection. -->
+                        <input type="date" class="form-control" name="start_date" aria-label="Start date" value="{{ filter_values.start_date }}">
+                        <span class="input-group-text">to</span>
+                        <input type="date" class="form-control" name="end_date" aria-label="End date" value="{{ filter_values.end_date }}">
+                     </div>
+                </div>
+
+                <!-- Action Buttons for the form -->
+                <div class="col-md-2 d-flex gap-2">
+                    <!-- The 'type="submit"' button triggers the form's GET request. -->
+                    <button type="submit" class="btn btn-primary w-100">Filter</button>
+                    <!-- This is a simple link that navigates back to the clean dashboard URL, effectively clearing all filters. -->
+                    <a href="{% url 'dashboard' %}" class="btn btn-secondary w-100">Clear</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
     <div class="card shadow-sm">
         <div class="card-body">
             {% if candidates %}
@@ -111,13 +227,15 @@
                     </table>
                 </div>
             {% else %}
-                <p class="text-center text-muted mt-3">No candidates found for your company.</p>
+                <!-- This message is now shown if no candidates are found OR if the filter returns no results. -->
+                <p class="text-center text-muted mt-3">No candidates found matching your criteria.</p>
             {% endif %}
         </div>
     </div>
 </div>
 
 
+<!-- Reusable Deletion Modal -->
 <div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -138,6 +256,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<!-- This script handles the interactive deletion functionality for both tables. -->
 <script>
 // 'DOMContentLoaded' is a browser event that fires when the initial HTML document has been completely loaded and parsed.
 // We wrap our code in this event listener as a best practice to ensure our script doesn't try to find HTML elements that don't exist yet.

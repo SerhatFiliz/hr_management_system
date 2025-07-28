@@ -125,3 +125,82 @@ Developed Comprehensive Unit Tests for CV Upload Feature:
 Resolved Pre-existing Test Suite Error: Fixed a TypeError in an unrelated, older test case by updating the ApplicationForm.
 Achieved Full Project Stability: Confirmed that the entire test suite now passes (OK), validating the reliability of all new and existing features.
 
+------------22.07.2002-----------------------------------------------------------------------------
+Modernized Dashboard UI/UX
+    Replaced standard page-reloading delete actions with an AJAX-based system for both "Job Postings" and "Candidates".
+    Implemented a reusable Bootstrap modal for delete confirmations, providing a smoother user experience.
+    Removed disruptive alert() boxes for success notifications and replaced them with non-intrusive UI messages that disappear automatically.
+I tried to improve the title generation feature.
+
+------------23.07.2025------------------------------------------------------------------------------
+Project Fully Dockerized
+    Created Dockerfile to build a consistent application image with all dependencies.
+    Authored docker-compose.yml to orchestrate a multi-container environment.
+    Launched and connected all required services: web (Gunicorn), db (PostgreSQL), redis, celery_worker, and celery_beat.
+    Refactored settings.py and created an .env file to manage all configurations and secrets securely.
+    Result: The entire project now starts with a single command (docker compose up --build -d)
+Interactive Bulk CV Upload Feature
+    Created New API Views: Refactored the backend logic by creating two new, dedicated API endpoints in views.py:
+        parse_cv_api_view: A new view that receives a single CV, calls the existing AI task to get parsed data (without saving), and returns it as JSON for the review panel.
+        save_candidates_api_view: A new view that receives the final, user-approved candidate list as JSON, creates the candidates, and saves their resume files.
+    Created a dynamic review panel where users can edit parsed data and approve candidates before saving.
+AI-Powered "Auto-fill from CV" Feature
+    Added an "Auto-fill from CV" button to the "Create Candidate" form.
+    Created a Dedicated API Endpoint: Built a new parse_cv_for_autofill_api view. This endpoint reuses the existing Celery AI task to specifically serve the auto-fill feature, keeping the application's concerns cleanly separated.
+    Implemented JavaScript fetch logic to send the selected CV, get back the parsed data, and instantly populate the form fields (First Name, Last Name, Email).
+    Improved the "Create Candidate" form layout by integrating the "Auto-fill" button directly next to the file input using a custom form rendering loop.
+Core Task Logic Enhancement
+    Modified process_single_cv Celery Task: The core AI task in tasks.py was refactored by adding a create_candidate boolean parameter. This crucial change made the task highly reusable, allowing it to either:
+    Parse a CV and create a candidate (its original function).
+    Only parse the CV and return the data without saving. This new capability was essential for enabling both the "Bulk Upload Review" and "Auto-fill" features.
+
+-------------24.07.2025---------------------------------------------------------------------------------
+Docker Error Resolution: The exec /app/entrypoint.sh: no such file or directory error was resolved by converting entrypoint.sh file's line endings to LF format.
+Git Tracking Cleanup: The staticfiles/ directory and temporary Celery Beat files (celerybeat-schedule.bak, .dat, .dir) were added to .gitignore. These files were untracked by Git and the changes were pushed to GitHub.
+Planned Enhancements:
+    Candidate Listing: Implement filtering by name, email, date range, and creator; add vector-based, relevance-ordered search for name and email.
+    CV Uploads: Integrate Kafka for a queue-based, asynchronous processing mechanism.
+
+------------25.07.2025-----------------------------------------------------------------------------------
+Foundational Candidate Filtering Feature Completed
+    UI Development: A new form was added to the dashboard to allow filtering candidates by Name/Email, the person who added them, and a Date Range.
+    Backend Logic: The DashboardView was rewritten to handle these filter parameters via GET requests and dynamically update the database query accordingly.
+    User Experience: The form was configured to "remember" the user's selected values after a filter is applied.
+
+Vector-Based (Semantic) Search Integration Completed
+    Database Preparation:
+        The pg_trgm extension was successfully activated in the PostgreSQL database by creating a custom Django migration, enabling text similarity searches.
+        Migration conflicts encountered during this process were resolved using the makemigrations --merge command.
+    Intelligent Search Logic:
+        The "Name or Email" search logic within the DashboardView was upgraded from a simple __icontains query to a system that uses Django's TrigramSimilarity function.
+        Result: The search feature is now more tolerant of typos and similar phrases, and it ranks the results with the most relevant matches at the top.
+
+Kafka Integration and Architecture Established
+    Infrastructure Expansion: docker-compose.yml was updated to include kafka and zookeeper services.
+    Producer Logic: The CV upload APIs in views.py were refactored to send jobs as messages to a Kafka queue instead of directly to Celery.
+    Consumer Logic: A new standalone service, kafka_consumer.py, was created to listen to the Kafka queue and trigger Celery tasks.
+
+Architectural Trade-offs and Identified Issues:
+    Hybrid Approach for "Auto-fill": It was decided that the "Auto-fill from CV" feature would bypass Kafka and call Celery directly to maintain an instant user experience. This pragmatic solution preserves usability for this specific feature.
+
+------------28.07.2025------------------------------------------------------------------------------------
+Real-time Feedback for Bulk CV Upload (Polling)
+    Problem: The UI would get stuck on "Pending..." after submitting CVs in the new Kafka architecture.
+    Solution: A full client-side polling system was implemented.
+        Backend: The Celery task now saves results to Redis with a unique task_id. New API endpoints were created to generate this task_id and to check the status of a task.
+        Frontend: The JavaScript was rewritten to poll the status check API every few seconds for each task_id, updating the UI in real-time as tasks are completed.
+
+Improved Handling of Existing Candidates
+Problem: Uploading a CV for a candidate who already exists resulted in a broken, empty row in the UI.
+Solution:
+    Backend (tasks.py): The Celery task was updated to always return the full parsed data (name, email), even for skipped candidates, but with a SKIPPED status.
+    Frontend (bulk_cv_upload.html): The JavaScript now recognizes the SKIPPED status. It correctly displays the candidate's information but marks the row visually as a duplicate and prevents it from being saved.
+
+AI Parsing Performance and Robustness
+    Problem: Feedback indicated that AI parsing was less effective than in a previous version.
+    Solution:
+        Model Upgrade: Reverted the AI model in tasks.py to the more powerful gemini-1.5-flash for better accuracy.
+        Data Handling: Made data processing more robust by adding default "Unknown" values for names if the AI returns a null value.
+        Outcome: The Bulk CV Upload feature is now fully functional with real-time feedback and handles edge cases, like existing candidates, in a professional and user-friendly manner.
+
+README.md file updated.

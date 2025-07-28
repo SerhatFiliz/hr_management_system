@@ -1,65 +1,116 @@
-# Define the version of the Docker Compose file format
-version: '3.8'
+# ACADEMIC / PROFESSIONAL CONTEXT:
+# This Docker Compose file defines a multi-container application environment. It allows us to
+# declare, configure, and link all the independent services (database, web server, etc.)
+# required to run our application. Using this file, the entire stack can be managed
+# with a single command (e.g., 'docker compose up'), ensuring consistency and simplifying setup.
 
-# Define all the services (containers) that make up our application
 services:
-  # The PostgreSQL Database Service
+  # --------------------------------------------------------------------------
+  # SERVICE 1: PostgreSQL Database ('db')
+  # --------------------------------------------------------------------------
   db:
-    image: postgres:15-alpine  # Use the official PostgreSQL 15 image
+    image: postgres:15-alpine
     volumes:
-      - postgres_data:/var/lib/postgresql/data/  # Persist database data on the host machine
+      - postgres_data:/var/lib/postgresql/data/
     environment:
-      - POSTGRES_DB=${SQL_DATABASE}      # Set database name from .env file
-      - POSTGRES_USER=${SQL_USER}        # Set database user from .env file
-      - POSTGRES_PASSWORD=${SQL_PASSWORD}  # Set database password from .env file
+      - POSTGRES_DB=${SQL_DATABASE}
+      - POSTGRES_USER=${SQL_USER}
+      - POSTGRES_PASSWORD=${SQL_PASSWORD}
     ports:
-      - "5432:5432"  # Map port 5432 on the host to 5432 in the container (for local debugging)
-    healthcheck: # Add this section for health checking
-      test: ["CMD-SHELL", "pg_isready -U ${SQL_USER} -d ${SQL_DATABASE}"] # Check if DB is ready
-      interval: 5s # Check every 5 seconds
-      timeout: 5s # Timeout after 5 seconds
-      retries: 5 # Retry 5 times before marking as unhealthy
-      start_period: 10s # Give the DB 10 seconds to start before checking
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${SQL_USER} -d ${SQL_DATABASE}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
-  # The Redis Service for Celery
+  # --------------------------------------------------------------------------
+  # SERVICE 2: Redis Message Broker ('redis')
+  # --------------------------------------------------------------------------
   redis:
-    image: redis:7-alpine  # Use the official Redis 7 image
+    image: redis:7-alpine
 
-  # The Django Web Application Service
+  # --------------------------------------------------------------------------
+  # SERVICE 3: Zookeeper (Kafka Dependency)
+  # --------------------------------------------------------------------------
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.3.2
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  # --------------------------------------------------------------------------
+  # SERVICE 4: Kafka Event Streaming Platform
+  # --------------------------------------------------------------------------
+  kafka:
+    image: confluentinc/cp-kafka:7.3.2
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+    healthcheck:
+      # MODIFICATION: The 'test' command must be prefixed with "CMD" to be valid.
+      # This tells Docker to execute the command directly, without a shell.
+      test: ["CMD", "/bin/kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s # Give Kafka more time to start up.
+
+  # --------------------------------------------------------------------------
+  # SERVICE 5: Django Web Application ('web')
+  # --------------------------------------------------------------------------
   web:
-    build: .  # Build the image from the Dockerfile in the current directory
-    # IMPORTANT: Use Gunicorn for a production-ready web server, not 'runserver'.
+    build: .
     command: gunicorn hr_management_system.wsgi:application --bind 0.0.0.0:8000
     volumes:
-      - .:/app  # Mount the current directory on the host to /app in the container for live code reloading
+      - .:/app
     ports:
-      - "8000:8000"  # Map port 8000 on the host to 8000 in the container
+      - "8000:8000"
     env_file:
-      - ./.env  # Load all environment variables from the .env file (cleaner method).
+      - ./.env
     depends_on:
       db:
-        condition: service_healthy # Wait until 'db' service is healthy
-      redis:
-        condition: service_started # Redis doesn't need a healthcheck for basic functionality
-
-  # The Celery Worker Service
-  celery_worker:
-    build: .  # Use the same image as the web service
-    # The command reads configuration from Django settings, which is more flexible.
-    command: celery -A hr_management_system worker -l info
-    volumes:
-      - .:/app  # Mount the code for live reloading
-    env_file:
-      - ./.env  # Load the same environment variables
-    depends_on:
-      db:
-        condition: service_healthy # Wait until 'db' service is healthy
+        condition: service_healthy
       redis:
         condition: service_started
+      # MODIFICATION: Now waits for Kafka to be 'healthy', not just 'started'.
+      kafka:
+        condition: service_healthy
 
-  # The Celery Beat Scheduler Service (for scheduled tasks)
+  # --------------------------------------------------------------------------
+  # SERVICE 6: Celery Background Worker ('celery_worker')
+  # --------------------------------------------------------------------------
+  celery_worker:
+    build: .
+    command: celery -A hr_management_system worker -l info
+    volumes:
+      - .:/app
+    env_file:
+      - ./.env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      # MODIFICATION: Now waits for Kafka to be 'healthy'.
+      kafka:
+        condition: service_healthy
+
+  # --------------------------------------------------------------------------
+  # SERVICE 7: Celery Beat Scheduler ('celery_beat')
+  # --------------------------------------------------------------------------
   celery_beat:
-    build: . # Use the same image
+    build: .
     command: celery -A hr_management_system beat -l info
     volumes:
       - .:/app
@@ -67,10 +118,32 @@ services:
       - ./.env
     depends_on:
       db:
-        condition: service_healthy # Wait until 'db' service is healthy
+        condition: service_healthy
       redis:
         condition: service_started
+      # MODIFICATION: Now waits for Kafka to be 'healthy'.
+      kafka:
+        condition: service_healthy
 
-# Define the named volume for persisting database data
+  # --------------------------------------------------------------------------
+  # SERVICE 8: Kafka Consumer ('kafka_consumer')
+  # --------------------------------------------------------------------------
+  kafka_consumer:
+    build: .
+    command: python portal/kafka_consumer.py
+    volumes:
+      - .:/app
+    env_file:
+      - ./.env
+    depends_on:
+      db:
+        condition: service_healthy
+      # MODIFICATION: Now waits for Kafka to be 'healthy'.
+      kafka:
+        condition: service_healthy
+
+# --------------------------------------------------------------------------
+# VOLUMES
+# --------------------------------------------------------------------------
 volumes:
   postgres_data:

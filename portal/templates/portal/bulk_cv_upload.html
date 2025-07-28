@@ -1,27 +1,20 @@
-{# portal/templates/portal/bulk_cv_upload.html #}
-
-{# This template inherits its basic structure (navbar, footer, etc.) from base.html #}
 {% extends "base.html" %}
-{# This block overrides the default title defined in base.html #}
 {% block title %}Interactive CV Upload{% endblock %}
 
-{# This is the main content block that will be injected into the 'content' block of base.html #}
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-10">
         <div class="card shadow-sm">
             <div class="card-body p-4">
-                {# --- NEW MESSAGE AREA --- #}
-                {# This container will be used by our JavaScript to display dynamic success/error messages. #}
                 <div id="dynamic-message-container"></div>
 
                 <h2 class="card-title text-center mb-4">Interactive Bulk CV Upload</h2>
                 
-                {# This is the initial form where the user selects files. #}
+                <!-- This is the initial form where the user selects files. -->
                 <form id="upload-form">
+                    {% csrf_token %}
                     <div class="mb-3">
                         <label for="cv_files_input" class="form-label">Select CV Files (PDF only)</label>
-                        {# 'multiple' allows selecting more than one file. 'accept=".pdf"' suggests to the browser to only show PDF files. #}
                         <input class="form-control" type="file" id="cv_files_input" multiple required accept=".pdf">
                     </div>
                     <div class="d-grid">
@@ -31,15 +24,15 @@
 
                 <hr class="my-4">
 
-                {# This title will be shown via JavaScript after files are uploaded. #}
+                <!-- This title will be shown via JavaScript after files are uploaded. -->
                 <h3 class="h5 text-center" id="review-title" style="display: none;">Review and Approve Candidates</h3>
                 
-                {# This div is a placeholder that will be dynamically populated with candidate data by our JavaScript. #}
+                <!-- This div is a placeholder that will be dynamically populated with candidate data by our JavaScript. -->
                 <div id="review-list" class="mt-3">
                     <!-- Candidate rows will be inserted here by the script -->
                 </div>
                 
-                {# This button will appear via JavaScript after the review list is populated. #}
+                <!-- This button will appear via JavaScript after all tasks are complete. -->
                 <div class="d-grid mt-3">
                     <button id="save-approved-btn" class="btn btn-success" style="display: none;">Save Approved Candidates</button>
                 </div>
@@ -48,24 +41,30 @@
     </div>
 </div>
 
+{% endblock %}
+
+{% block extra_js %}
+<!-- 
+====================================================================
+===== STEP 4: UPDATING THE FRONTEND JAVASCRIPT FOR POLLING =====
+====================================================================
+-->
 <script>
-// This is a safety measure. It ensures that our JavaScript code runs only
-// after the entire HTML document has been loaded and is ready.
+// Wait for the entire HTML document to be ready before running the script.
 document.addEventListener('DOMContentLoaded', function() {
     
-    // --- Step 1: Get references to all the HTML elements we need to interact with. ---
+    // --- Step 1: Get references to all the HTML elements we need ---
     const uploadForm = document.getElementById('upload-form');
     const fileInput = document.getElementById('cv_files_input');
     const reviewList = document.getElementById('review-list');
     const reviewTitle = document.getElementById('review-title');
     const saveBtn = document.getElementById('save-approved-btn');
     const messageContainer = document.getElementById('dynamic-message-container');
-    // We get the CSRF token from the page, which is required for secure POST requests in Django.
     const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
 
     // --- Helper Function: To show dynamic Bootstrap alerts. ---
     function showMessage(message, type = 'success') {
-        const alertClass = `alert-${type}`; // 'alert-success' or 'alert-danger'
+        const alertClass = `alert-${type}`;
         const messageHtml = `
             <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
                 ${message}
@@ -73,18 +72,14 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
         `;
         messageContainer.innerHTML = messageHtml;
-        // Automatically dismiss the alert after 5 seconds.
         setTimeout(() => {
             const alertElement = messageContainer.querySelector('.alert');
-            if (alertElement) {
-                new bootstrap.Alert(alertElement).close();
-            }
+            if (alertElement) { new bootstrap.Alert(alertElement).close(); }
         }, 5000);
     }
 
     // --- Step 2: Handle the initial form submission. ---
     uploadForm.addEventListener('submit', async function(event) {
-        // Prevent the default browser action of submitting the form and reloading the page.
         event.preventDefault();
         
         const files = fileInput.files;
@@ -93,153 +88,192 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // --- Process files sequentially and update UI instantly. ---
+        // Reset the UI for a new upload session.
         reviewTitle.style.display = 'block';
-        reviewList.innerHTML = ''; // Clear previous results
+        reviewList.innerHTML = '';
         saveBtn.style.display = 'none';
-        let hasSuccessfulResults = false;
+        
+        // This object will store the interval IDs for each polling task, so we can stop them later.
+        const pollingIntervals = {};
 
-        // We loop through each selected file one by one.
+        // --- Step 3: Loop through each file and send it to the initial parsing API ---
         for (const file of files) {
-            // For each file, we first show a "Processing..." placeholder.
-            const placeholderId = `placeholder-${file.name.replace(/[^a-zA-Z0-9]/g, '')}`;
-            const placeholderHtml = `<div id="${placeholderId}" class="text-center text-muted p-2 border-bottom"><i>Processing ${file.name}...</i></div>`;
+            // Create a unique ID for the placeholder row that will be created in the UI.
+            const placeholderId = `placeholder-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            
+            // Display a "Processing..." placeholder row immediately.
+            const placeholderHtml = `
+                <div id="${placeholderId}" class="row g-2 align-items-center border-bottom py-2" data-status="pending">
+                    <div class="col">
+                        <span class="text-muted fst-italic">Processing ${file.name}...</span>
+                    </div>
+                    <div class="col-auto">
+                        <div class="spinner-border spinner-border-sm" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>`;
             reviewList.insertAdjacentHTML('beforeend', placeholderHtml);
 
+            // Prepare the file to be sent.
             const formData = new FormData();
             formData.append('cv_file', file);
 
             try {
-                // We 'await' the fetch call. This means the loop will pause here
-                // until the backend has finished processing this single file.
+                // Send the file to our first API endpoint ('parse_cv_api_view').
                 const response = await fetch("{% url 'api-parse-cv' %}", {
                     method: 'POST',
                     headers: { 'X-CSRFToken': csrfToken },
                     body: formData
                 });
+                
                 const data = await response.json();
                 
-                // Once we have the result, we find the placeholder we just created.
-                const placeholderElement = document.getElementById(placeholderId);
-                
-                let rowHtml;
-                const isError = data.error;
+                if (response.ok && data.task_id) {
+                    // --- Step 4: If we get a task_id back, start polling for the result ---
+                    const placeholderElement = document.getElementById(placeholderId);
+                    // Store the task_id on the placeholder element itself for easy access.
+                    placeholderElement.dataset.taskId = data.task_id;
+                    
+                    // Start a polling function for this specific task.
+                    // 'setInterval' will run the provided function every 2 seconds (2000 milliseconds).
+                    pollingIntervals[data.task_id] = setInterval(() => {
+                        pollForResult(data.task_id, placeholderId, pollingIntervals);
+                    }, 2000);
 
-                // We create the final HTML row for the candidate.
-                rowHtml = `
-                    <div class="row g-2 align-items-center border-bottom py-2" 
-                         data-status="${isError ? 'rejected' : 'approved'}" 
-                         data-filename="${data.original_filename || ''}"
-                         data-content="${data.file_content_b64 || ''}">
-                        <div class="col"><input type="text" class="form-control form-control-sm" data-field="first_name" value="${data.first_name || ''}" ${isError ? 'disabled' : ''}></div>
-                        <div class="col"><input type="text" class="form-control form-control-sm" data-field="last_name" value="${data.last_name || ''}" ${isError ? 'disabled' : ''}></div>
-                        <div class="col-4"><input type="email" class="form-control form-control-sm" data-field="email" value="${data.email || ''}" ${isError ? 'disabled' : ''}></div>
-                        <div class="col-auto">
-                            ${isError ? `<span class="text-danger small">${data.error}</span>` : `
-                            <button class="btn btn-sm btn-outline-danger btn-reject" title="Reject">✖</button>
-                            <button class="btn btn-sm btn-success btn-approve" title="Approve" style="display: none;">✔</button>
-                            `}
-                        </div>
-                    </div>
-                `;
-                
-                // We replace the placeholder with the final result row.
-                placeholderElement.outerHTML = rowHtml;
-
-                if (!isError) {
-                    hasSuccessfulResults = true;
+                } else {
+                    // Handle initial upload errors (e.g., Kafka is down).
+                    const placeholderElement = document.getElementById(placeholderId);
+                    placeholderElement.innerHTML = `<div class="text-danger p-2">Error queuing ${file.name}: ${data.error || 'Unknown error'}</div>`;
                 }
 
             } catch (error) {
-                // If there's a network error, we also update the placeholder.
+                // Handle network errors during the initial upload.
                 const placeholderElement = document.getElementById(placeholderId);
-                placeholderElement.outerHTML = `<div class="text-danger p-2 border-bottom">Network error processing ${file.name}.</div>`;
+                placeholderElement.innerHTML = `<div class="text-danger p-2">Network error processing ${file.name}.</div>`;
             }
-        } // The loop continues to the next file.
-
-        // After the loop finishes, if we have any successful results, we show the "Save" button.
-        if (hasSuccessfulResults) {
-            saveBtn.style.display = 'block';
         }
     });
 
-    // --- Step 5: Handle user interactions with the review list (approve/reject). ---
+    // --- Step 5: The Polling Function ---
+    // This function checks the status of a single background task.
+    async function pollForResult(taskId, placeholderId, pollingIntervals) {
+        try {
+            // Make a GET request to our new status checking API.
+            const response = await fetch(`/portal/api/check-task-status/${taskId}/`);
+            const result = await response.json();
+
+            // Check the status returned from the API.
+            if (result.status === 'COMPLETE') {
+                // --- Step 5a: If the task is complete, stop polling and update the UI ---
+                clearInterval(pollingIntervals[taskId]); // Stop this specific interval.
+                delete pollingIntervals[taskId]; // Remove it from our tracking object.
+
+                const resultRow = document.getElementById(placeholderId);
+                updateRowWithResult(resultRow, result.data); // Call a helper function to update the row.
+                
+                // If there are no more tasks being polled, it means all jobs are finished.
+                if (Object.keys(pollingIntervals).length === 0) {
+                    saveBtn.style.display = 'block';
+                }
+
+            } else if (result.status === 'FAILURE') {
+                // --- Step 5b: If the task failed, stop polling and show an error ---
+                clearInterval(pollingIntervals[taskId]);
+                delete pollingIntervals[taskId];
+                const resultRow = document.getElementById(placeholderId);
+                resultRow.innerHTML = `<div class="text-danger p-2">Failed to process CV. Error: ${result.data.error}</div>`;
+
+                if (Object.keys(pollingIntervals).length === 0) {
+                    saveBtn.style.display = 'block';
+                }
+            }
+            // If status is 'PENDING', do nothing and let the interval run again on its next cycle.
+
+        } catch (error) {
+            console.error(`Error polling for task ${taskId}:`, error);
+            clearInterval(pollingIntervals[taskId]); // Stop polling on network error.
+            delete pollingIntervals[taskId];
+        }
+    }
+
+    // --- Step 6: Helper function to update a row with the final data ---
+    function updateRowWithResult(rowElement, data) {
+        const isError = data.status === 'FAILURE';
+        
+        // This HTML is similar to our original version, but now it's populated with the final data from the polling result.
+        const rowHtml = `
+            <div class="col"><input type="text" class="form-control form-control-sm" data-field="first_name" value="${data.first_name || ''}" ${isError ? 'disabled' : ''}></div>
+            <div class="col"><input type="text" class="form-control form-control-sm" data-field="last_name" value="${data.last_name || ''}" ${isError ? 'disabled' : ''}></div>
+            <div class="col-4"><input type="email" class="form-control form-control-sm" data-field="email" value="${data.email || ''}" ${isError ? 'disabled' : ''}></div>
+            <div class="col-auto">
+                ${isError ? `<span class="text-danger small">${data.error}</span>` : `
+                <button class="btn btn-sm btn-outline-danger btn-reject" title="Reject">✖</button>
+                <button class="btn btn-sm btn-success btn-approve" title="Approve" style="display: none;">✔</button>
+                `}
+            </div>
+        `;
+        
+        // Replace the placeholder content with the final, interactive row.
+        rowElement.innerHTML = rowHtml;
+        // Add the necessary data attributes to the parent row element for the final save step.
+        rowElement.dataset.status = isError ? 'rejected' : 'approved';
+        rowElement.dataset.filename = data.original_filename || '';
+        rowElement.dataset.content = data.file_content_b64 || '';
+    }
+
+    // --- (UNCHANGED) Step 7 & 8: Handle user interactions and the final save button ---
     reviewList.addEventListener('click', function(event) {
         const row = event.target.closest('.row');
         if (!row) return;
-
-        // Logic for the reject button.
         if (event.target.classList.contains('btn-reject')) {
-            row.style.opacity = '0.5';
-            row.dataset.status = 'rejected';
+            row.style.opacity = '0.5'; row.dataset.status = 'rejected';
             row.querySelector('.btn-approve').style.display = 'inline-block';
             event.target.style.display = 'none';
         }
-        // Logic for the approve button (to undo a rejection).
         if (event.target.classList.contains('btn-approve')) {
-            row.style.opacity = '1';
-            row.dataset.status = 'approved';
+            row.style.opacity = '1'; row.dataset.status = 'approved';
             row.querySelector('.btn-reject').style.display = 'inline-block';
             event.target.style.display = 'none';
         }
     });
 
-    // --- Step 6: Handle the final "Save" button click. ---
     saveBtn.addEventListener('click', function() {
         const candidatesToSave = [];
-        const rows = reviewList.querySelectorAll('.row');
-
-        // We collect the (potentially edited) data from all rows that are NOT marked as 'rejected'.
-        rows.forEach(row => {
+        reviewList.querySelectorAll('.row').forEach(row => {
             if (row.dataset.status === 'approved') {
                 const candidateData = {
                     first_name: row.querySelector('[data-field="first_name"]').value.trim(),
                     last_name: row.querySelector('[data-field="last_name"]').value.trim(),
                     email: row.querySelector('[data-field="email"]').value.trim(),
-                    // We also retrieve the original file content to send it for saving.
                     file_content_b64: row.dataset.content,
                     original_filename: row.dataset.filename
                 };
-                if (candidateData.email) {
-                    candidatesToSave.push(candidateData);
-                }
+                if (candidateData.email) { candidatesToSave.push(candidateData); }
             }
         });
-
         if (candidatesToSave.length === 0) {
             showMessage("No candidates are marked for approval.", 'warning');
             return;
         }
-
-        saveBtn.disabled = true;
-        saveBtn.textContent = 'Saving...';
-
-        // We send the final list of candidates to our saving API.
+        saveBtn.disabled = true; saveBtn.textContent = 'Saving...';
         fetch("{% url 'api-save-candidates' %}", {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken
-            },
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
             body: JSON.stringify({ candidates: candidatesToSave })
         })
         .then(response => response.json())
         .then(data => {
-            // --- Handle redirect ---
-            // If the backend sends a redirect_url, we navigate the user to that page.
             if (data.success && data.redirect_url) {
                 window.location.href = data.redirect_url;
             } else {
-                // If there's an error, we show it on the current page.
                 showMessage(data.error || 'An unknown error occurred.', 'danger');
             }
         })
         .finally(() => {
-            saveBtn.disabled = false;
-            saveBtn.textContent = 'Save Approved Candidates';
+            saveBtn.disabled = false; saveBtn.textContent = 'Save Approved Candidates';
         });
     });
 });
 </script>
-{% endblock %}
-
+{% endblock extra_js %}

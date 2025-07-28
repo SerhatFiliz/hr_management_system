@@ -24,33 +24,154 @@ from django.urls import reverse
 from .forms import CandidateForm, JobPostingForm, ApplicationForm, ApplicationStatusForm
 from .models import Candidate, Employee, JobPosting, Application
 
+from django.db.models import Q  # The 'Q' object is used to build complex queries with OR conditions.
+                                # .filter(Q(condition1) | Q(condition2)) means "where condition1 OR condition2".
 
-class DashboardView(LoginRequiredMixin, TemplateView):
-    """
-    Displays the main dashboard, acting as the central hub for the user.
-    """
-    template_name = 'portal/dashboard.html'
+# TrigramSimilarity: This function calculates the similarity score (from 0.0 to 1.0) between two strings based on their shared trigrams.                   
+from django.contrib.postgres.search import TrigramSimilarity  
 
-    def get_context_data(self, **kwargs):
+# Greatest: This function is used to find the highest value among multiple fields, which we will use to find the best similarity match.           
+from django.db.models.functions import Greatest
+
+from kafka import KafkaProducer  # The new library to interact with Kafka.
+
+import redis # Import redis to check for task results
+
+import uuid  # Import the UUID library to generate unique task IDs.
+
+# The view is now a Class-Based View (CBV) for better organization and extensibility.
+# It inherits from LoginRequiredMixin to ensure only authenticated users can access it.
+class DashboardView(LoginRequiredMixin, View):
+    """
+    This Class-Based View handles both displaying the dashboard and processing
+    the candidate filter form submissions via GET requests, including vector-based search.
+    """
+    def get(self, request, *args, **kwargs):
         """
-        CRITICAL METHOD: This method prepares and sends data from our Python
-        backend to the HTML template. It's how our template knows what to display.
+        The 'get' method is called whenever a user navigates to this page with a GET request.
         """
-        context = super().get_context_data(**kwargs)
+        # --- Initial Setup ---
+        # Step 1: Get the company associated with the currently logged-in user.
+        company = request.user.employee.company
+
+        # Step 2: Get the base querysets for all jobs and candidates for this company.
+        job_postings = JobPosting.objects.filter(company=company)
+        # This is our starting point for candidates, which we will narrow down with filters.
+        candidate_queryset = Candidate.objects.filter(company=company)
+
+
+        # --- Step 3: Get Filter Parameters from the URL ---
+        # We use request.GET.get() to safely retrieve values from the URL's query string.
+        # If a parameter doesn't exist, it will default to an empty string.
+        name_email_query = request.GET.get('name_email', '')
+        added_by_query = request.GET.get('added_by', '')
+        start_date_query = request.GET.get('start_date', '')
+        end_date_query = request.GET.get('end_date', '')
+
+
+        # --- Step 4: Apply Filters to the Candidate Queryset ---
+        # We check each parameter and, if it has a value, we chain a .filter() method
+        # to our initial candidate_queryset. This dynamically builds our database query.
+
+        # MODIFIED: Filter by Name or Email using Trigram Similarity
+        if name_email_query:
+            # Step 4a: Annotate the queryset with similarity scores.
+            # .annotate() adds a new temporary field to each object in the queryset.
+            candidate_queryset = candidate_queryset.annotate(
+                first_name_similarity=TrigramSimilarity('first_name', name_email_query),
+                last_name_similarity=TrigramSimilarity('last_name', name_email_query),
+                email_similarity=TrigramSimilarity('email', name_email_query),
+            )
+            # Step 4b: Find the best match among the calculated similarities.
+            candidate_queryset = candidate_queryset.annotate(
+                best_similarity=Greatest(
+                    'first_name_similarity', 
+                    'last_name_similarity', 
+                    'email_similarity'
+                )
+            )
+            # Step 4c: Filter out results that are not similar enough.
+            similarity_threshold = 0.1
+            candidate_queryset = candidate_queryset.filter(best_similarity__gt=similarity_threshold)
+            # Step 4d: Order the results by the best similarity score, descending.
+            candidate_queryset = candidate_queryset.order_by('-best_similarity')
+
+        # --- Other filters remain the same ---
+        if added_by_query:
+            candidate_queryset = candidate_queryset.filter(created_by__id=added_by_query)
+        if start_date_query:
+            candidate_queryset = candidate_queryset.filter(created_at__gte=start_date_query)
+        if end_date_query:
+            candidate_queryset = candidate_queryset.filter(created_at__lte=end_date_query)
+
+
+        # --- Step 5: Prepare Additional Data for the Template Context ---
+        company_employees = Employee.objects.filter(company=company).distinct()
+
+        # The 'context' is a Python dictionary that acts as a bridge between your backend (this view)
+        # and your frontend (the HTML template). Every key in this dictionary becomes a variable
+        # that you can access in your template using {{ variable_name }}.
+        #
+        context = {
+            # 'company': This key makes the company object available in the template,
+            #            so we can display its name with {{ company.name }}.
+            'company': company,
+            
+            # 'job_postings': Passes the queryset of all job postings for this company.
+            #                 In the template, we can loop through this with {% for job in job_postings %}.
+            'job_postings': job_postings,
+            
+            # 'candidates': This is the most important data for our table. It contains the final,
+            #               potentially filtered and sorted, list of candidates to display.
+            'candidates': candidate_queryset,
+            
+            # 'company_employees': We pass this list of employees so we can dynamically populate the
+            #                      "Added By" dropdown menu in our filter form.
+            'company_employees': company_employees,
+            
+            # 'filter_values': This nested dictionary is a user-experience improvement. It sends the user's
+            #                  current filter selections back to the template. The template then uses these
+            #                  values to pre-fill the form fields, making the form "remember" the selections.
+            'filter_values': {
+                'name_email': name_email_query,
+                'added_by': added_by_query,
+                'start_date': start_date_query,
+                'end_date': end_date_query,
+            }
+        }
         
-        try:
-            employee = self.request.user.employee
-            context['company'] = employee.company
-            context['job_postings'] = JobPosting.objects.filter(company=employee.company)
-            context['candidates'] = Candidate.objects.filter(company=employee.company)
-        except Employee.DoesNotExist:
-            # Safely handle cases where a user (like a superuser) has no employee profile.
-            context['company'] = None
-            context['job_postings'] = []
-            context['candidates'] = []
+        # --- Step 6: Render the Template ---
+        # Finally, we render the specified HTML template, passing the 'context' dictionary
+        # to it so that all our data is available for display.
+        return render(request, 'portal/dashboard.html', context)
 
-        context['user'] = self.request.user
-        return context
+#-----------------------------------------------------------------------------------------------------------
+# class DashboardView(LoginRequiredMixin, TemplateView):
+#     """
+#     Displays the main dashboard, acting as the central hub for the user.
+#     """
+#     template_name = 'portal/dashboard.html'
+
+#     def get_context_data(self, **kwargs):
+#         """
+#         CRITICAL METHOD: This method prepares and sends data from our Python
+#         backend to the HTML template. It's how our template knows what to display.
+#         """
+#         context = super().get_context_data(**kwargs)
+        
+#         try:
+#             employee = self.request.user.employee
+#             context['company'] = employee.company
+#             context['job_postings'] = JobPosting.objects.filter(company=employee.company)
+#             context['candidates'] = Candidate.objects.filter(company=employee.company)
+#         except Employee.DoesNotExist:
+#             # Safely handle cases where a user (like a superuser) has no employee profile.
+#             context['company'] = None
+#             context['job_postings'] = []
+#             context['candidates'] = []
+
+#         context['user'] = self.request.user
+#         return context
 
 """
 # --- Function-Based Equivalent for DashboardView ---
@@ -641,170 +762,170 @@ class BulkCVUploadView(LoginRequiredMixin, View):
         return redirect('dashboard')
 """
 
-# ==============================================================================
-# VIEW 1: BulkCVUploadView
-# Description: A simple Class-Based View (CBV) to display the initial upload page.
-# ==============================================================================
-class BulkCVUploadView(LoginRequiredMixin, View):
-    """
-    Handles displaying the interactive bulk CV upload page.
-    The 'LoginRequiredMixin' ensures that only logged-in users can access this page.
-    """
-    def get(self, request, *args, **kwargs):
-        """
-        This method is called when a user navigates to this page with a GET request.
-        Its only job is to render and return the corresponding HTML template.
-        All the complex logic is now handled by the JavaScript on that page and the API views below.
-        """
-        return render(request, 'portal/bulk_cv_upload.html')
 
 #-------------------------------------------------------------------------------------------
 
 # ==============================================================================
-# API VIEW 1: The CV Parser (For the Bulk Upload feature)
-# Description: A Function-Based View (FBV) that acts as an API endpoint.
-#              Its sole purpose is to receive a CV file and return parsed data.
+# KAFKA & REDIS SETUP
 # ==============================================================================
+# Kafka Producer connection (remains the same)
+kafka_producer = None
+try:
+    KAFKA_BOOTSTRAP_SERVERS = os.getenv('KAFKA_BOOTSTRAP_SERVERS')
+    KAFKA_CV_TOPIC = os.getenv('KAFKA_CV_TOPIC')
+    kafka_producer = KafkaProducer(
+        bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS.split(','),
+        value_serializer=lambda v: json.dumps(v).encode('utf-8')
+    )
+    print("Kafka Producer connected successfully.")
+except Exception as e:
+    print(f"CRITICAL: Could not connect to Kafka Producer. Error: {e}")
 
-# @csrf_exempt: This decorator is used because our JavaScript 'fetch' call sends the CSRF token
-#               in a header, not as a standard form field. This tells Django to allow the request.
-# @login_required: Ensures only authenticated users can use this API endpoint.
-@csrf_exempt
-@login_required
-def parse_cv_api_view(request):
-    """
-    API endpoint that receives a single CV file, processes it to extract
-    information, but DOES NOT save it to the database.
-    It returns the extracted information as JSON for the frontend JavaScript.
-    """
-    # Step 1: Check if the request is a POST request and contains a file. This is a security and validation step.
-    if request.method == 'POST' and request.FILES.get('cv_file'):
-        
-        # Step 2: Get the file object from the request.
-        cv_file = request.FILES['cv_file']
-        
-        # Step 3: Read the binary content of the file and encode it into a Base64 string.
-        # Base64 is a safe way to transport binary data (like a PDF) within text-based systems like JSON or Celery tasks.
-        file_content_b64 = base64.b64encode(cv_file.read()).decode('utf-8')
-        
-        # Step 4: Call our main background task/function ('process_single_cv') to do the actual work.
-        # This view acts as a "bridge" to our core logic. We explicitly tell it NOT to create a candidate.
-        result_data = process_single_cv(
-            file_content_b64,
-            cv_file.name,
-            request.user.employee.company.id,
-            request.user.id,
-            create_candidate=False  # CRITICAL: This ensures we only parse the data, not save it.
-        )
-        
-        # Step 5: Check the result from the task.
-        if isinstance(result_data, dict) and 'error' not in result_data:
-            # If the result is a dictionary without an error key, it was successful.
-            # Return the data as a JSON response with a 200 OK status.
-            return JsonResponse(result_data)
-        else:
-            # If the task returned an error, package it into a JSON error response.
-            error_message = result_data.get('error') if isinstance(result_data, dict) else str(result_data)
-            # Return with a status of 400 (Bad Request) to indicate a client-side or processing error.
-            return JsonResponse({'error': error_message, 'original_filename': cv_file.name}, status=400)
-            
-    # If the request is not POST or doesn't have a file, return a generic error.
-    return JsonResponse({'error': 'Invalid request.'}, status=400)
+# Redis client for checking task results (remains the same)
+redis_client = redis.Redis(host=os.getenv('REDIS_HOST', 'redis'), port=6379, db=1)
 
 
 # ==============================================================================
-# API VIEW 2: The Candidate Saver (For the Bulk Upload feature)
-# Description: This API endpoint receives the final, user-approved list of candidates
-#              from the bulk upload page and saves them to the database.
+# (UNCHANGED VIEWS: DashboardView, BulkCVUploadView, save_candidates_api_view, etc.)
+# These views are included for completeness but were not modified in this step.
 # ==============================================================================
+class BulkCVUploadView(LoginRequiredMixin, View):
+    def get(self, request, *args, **kwargs):
+        return render(request, 'portal/bulk_cv_upload.html')
+
 @csrf_exempt
 @login_required
 def save_candidates_api_view(request):
-    """
-    API endpoint that receives a list of approved candidate data in JSON format,
-    creates the Candidate objects, and saves their resume files.
-    """
+    # ... (code for this view is unchanged) ...
     if request.method == 'POST':
         try:
-            # Step 1: Parse the JSON data sent in the body of the request from our JavaScript.
             data = json.loads(request.body)
             candidates_to_save = data.get('candidates', [])
-            
-            # Step 2: Loop through each candidate object in the received list.
             for cand_data in candidates_to_save:
                 email = cand_data.get('email')
-                
-                # Step 3: Check if a candidate with this email already exists for this company to avoid duplicates.
                 if email and not Candidate.objects.filter(email=email, company=request.user.employee.company).exists():
-                    
-                    # Step 4: Create a new Candidate object in the database with the provided data.
                     new_candidate = Candidate.objects.create(
                         company=request.user.employee.company,
                         first_name=cand_data.get('first_name', 'Unknown'),
                         last_name=cand_data.get('last_name', 'Unknown'),
-                        email=email,
-                        created_by=request.user.employee
+                        email=email, created_by=request.user.employee
                     )
-                    
-                    # Step 5: Handle the resume file.
                     file_content_b64 = cand_data.get('file_content_b64')
                     original_filename = cand_data.get('original_filename', 'resume.pdf')
-                    
                     if file_content_b64:
-                        # Decode the Base64 string back into its original binary bytes.
                         file_content = base64.b64decode(file_content_b64)
-                        # Use Django's 'ContentFile' to treat these bytes as a file and save it to the 'resume' field.
                         new_candidate.resume.save(original_filename, ContentFile(file_content), save=True)
-
-            # Step 6: After the loop finishes, return a successful JSON response.
-            # This response includes a 'redirect_url', which the JavaScript will use to navigate the user to the dashboard.
             return JsonResponse({
-                'success': True,
-                'message': f'{len(candidates_to_save)} candidates were processed.',
+                'success': True, 'message': f'{len(candidates_to_save)} candidates were processed.',
                 'redirect_url': reverse('dashboard')
             })
-
         except Exception as e:
-            # If any part of the process fails, catch the exception and return a server error response.
             return JsonResponse({'error': str(e)}, status=500)
-            
     return JsonResponse({'error': 'Invalid request method.'}, status=405)
 
-
-# ==============================================================================
-# API VIEW 3: The CV Parser (For the Auto-fill feature)
-# Description: This is a new, dedicated API endpoint for the "Auto-fill from CV" button
-#              on the single candidate creation form.
-# ==============================================================================
 @csrf_exempt
 @login_required
 def parse_cv_for_autofill_api(request):
-    """
-    API endpoint that receives a single CV file, calls our existing AI task to parse it,
-    and returns the extracted data as JSON to the form's JavaScript.
-    It is architecturally clean to have a separate endpoint for this distinct feature.
-    """
-    # Step 1: Check for a POST request with a file.
+    # ... (code for this synchronous view is unchanged) ...
     if request.method == 'POST' and request.FILES.get('cv_file'):
-        
-        # Step 2: Get the file and encode it to Base64.
         cv_file = request.FILES['cv_file']
         file_content_b64 = base64.b64encode(cv_file.read()).decode('utf-8')
-        
-        # Step 3: REUSE our main 'process_single_cv' task. This is efficient and avoids code duplication.
-        result_data = process_single_cv(
-            file_content_b64=file_content_b64,
-            original_filename=cv_file.name,
-            company_id=request.user.employee.company.id,
-            created_by_id=request.user.id,
-            create_candidate=False # Again, we ensure no candidate is created here.
-        )
-        
-        # Step 4: Check the result and return the appropriate JSON response.
-        if isinstance(result_data, dict) and 'error' not in result_data:
-            return JsonResponse(result_data)
-        else:
-            error_message = result_data.get('error') if isinstance(result_data, dict) else str(result_data)
-            return JsonResponse({'error': error_message}, status=400)
-            
+        try:
+            # Note: We are now passing the task_id to the Celery task, even for this synchronous call.
+            # While not strictly necessary for the auto-fill feature itself, it's good practice for consistency and debugging.
+            task_id = str(uuid.uuid4())
+            result_data = process_single_cv.delay(
+                file_content_b64=file_content_b64,
+                original_filename=cv_file.name,
+                company_id=request.user.employee.company.id,
+                created_by_id=request.user.id,
+                create_candidate=False,
+                task_id=task_id # Pass the new task_id
+            ).get(timeout=30)
+            if isinstance(result_data, dict) and 'error' not in result_data:
+                return JsonResponse(result_data)
+            else:
+                error_message = result_data.get('error') if isinstance(result_data, dict) else str(result_data)
+                return JsonResponse({'error': error_message}, status=400)
+        except Exception as e:
+            print(f"Error in synchronous auto-fill task: {e}")
+            return JsonResponse({'error': 'The CV processing timed out or failed.'}, status=500)
     return JsonResponse({'error': 'Invalid request. A file must be provided.'}, status=400)
+
+
+# ==============================================================================
+# API VIEW: The CV Parser (For Bulk Upload) - MODIFIED FOR POLLING
+# ==============================================================================
+@csrf_exempt
+@login_required
+def parse_cv_api_view(request):
+    """
+    MODIFIED: This API endpoint now generates a unique task_id for each request.
+    It includes this task_id in the message to Kafka and returns it to the frontend.
+    The frontend will use this task_id to poll for the result.
+    """
+    if kafka_producer is None:
+        return JsonResponse({'error': 'Kafka service is not available.'}, status=503)
+
+    if request.method == 'POST' and request.FILES.get('cv_file'):
+        cv_file = request.FILES['cv_file']
+        file_content_b64 = base64.b64encode(cv_file.read()).decode('utf-8')
+
+        # Step 1 (NEW): Generate a unique Task ID.
+        # uuid.uuid4() creates a random, universally unique identifier.
+        task_id = str(uuid.uuid4())
+
+        # Step 2: Create the message payload, now including the task_id.
+        message = {
+            'task_id': task_id, # Add the task_id to the message
+            'file_content_b64': file_content_b64,
+            'original_filename': cv_file.name,
+            'company_id': request.user.employee.company.id,
+            'created_by_id': request.user.id,
+        }
+
+        try:
+            # Step 3: Send the message to the Kafka topic.
+            kafka_producer.send(KAFKA_CV_TOPIC, value=message)
+            
+            # Step 4 (MODIFIED): Return the task_id to the user.
+            # The frontend JavaScript will receive this and know which task to check the status of.
+            return JsonResponse({
+                'task_id': task_id,
+                'status': 'QUEUED',
+                'original_filename': cv_file.name,
+            })
+        except Exception as e:
+            print(f"Error sending message to Kafka: {e}")
+            return JsonResponse({'error': 'Could not queue CV for processing.'}, status=500)
+            
+    return JsonResponse({'error': 'Invalid request.'}, status=400)
+
+
+# ==============================================================================
+# NEW API VIEW: Task Status Checker
+# ==============================================================================
+@login_required
+def check_task_status_api(request, task_id):
+    """
+    This is a new, simple API endpoint that the frontend will poll.
+    It takes a task_id and checks Redis to see if the result for that task is ready.
+    """
+    try:
+        # Step 1: Check Redis for the given task_id.
+        result_json = redis_client.get(task_id)
+
+        if result_json:
+            # Step 2a: If a result is found, it means the task is complete.
+            # We parse the JSON string back into a Python dictionary.
+            result_data = json.loads(result_json)
+            # We can optionally remove the key from Redis now that it has been retrieved.
+            # redis_client.delete(task_id)
+            return JsonResponse({'status': 'COMPLETE', 'data': result_data})
+        else:
+            # Step 2b: If no result is found, the task is still pending.
+            return JsonResponse({'status': 'PENDING'})
+
+    except Exception as e:
+        print(f"Error checking task status for {task_id}: {e}")
+        return JsonResponse({'status': 'FAILURE', 'error': 'An error occurred while checking task status.'}, status=500)
